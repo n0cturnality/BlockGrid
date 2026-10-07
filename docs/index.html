@@ -1,0 +1,2262 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>BlockGrid Simulator</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Orbitron:wght@500;700&display=swap');
+
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --bg:        #0b0b0c;
+    --card:      #131315;
+    --card-edge: #232327;
+    --ink:       #d6d6d6;
+    --ink-dim:   #8a8a8f;
+    --ink-faint: #56565c;
+    --orange:    #ff9f1c;
+    --orange-lo: rgba(255,159,28,.14);
+    --green:     #00ff46;
+    --red:       #ff4a4a;
+    --blue:      #6ebeff;
+    --mono: 'Share Tech Mono', ui-monospace, 'SFMono-Regular', Menlo, Consolas, monospace;
+    --head: 'Orbitron', var(--mono);
+  }
+
+  body {
+    background: var(--bg);
+    color: var(--ink);
+    font-family: var(--mono);
+    font-size: 13px;
+    min-height: 100vh;
+    padding: 28px 16px 40px;
+  }
+
+  .page { max-width: 1120px; margin: 0 auto; }
+
+  /* ── Header ── */
+  header.top {
+    display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between;
+    gap: 6px 24px; margin-bottom: 22px;
+  }
+  header.top h1 {
+    font-family: var(--head); font-weight: 700; font-size: 17px;
+    letter-spacing: .22em; text-transform: uppercase; color: var(--ink);
+  }
+  header.top h1 span { color: var(--orange); }
+  header.top .spec { color: var(--ink-faint); font-size: 11px; letter-spacing: .14em; text-transform: uppercase; }
+
+  /* ── Layout: device left, controls right; stacks on narrow screens ── */
+  .layout {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 330px;
+    gap: 22px;
+    align-items: start;
+  }
+
+  /* ── Device enclosure ── */
+  .enclosure {
+    background: linear-gradient(160deg, #232325 0%, #151517 60%, #1c1c1e 100%);
+    border-radius: 16px;
+    padding: 26px 26px 20px;
+    box-shadow: 0 0 0 1px #2b2b2e, 0 10px 40px rgba(0,0,0,.85), inset 0 1px 0 #36363a;
+    position: relative;
+  }
+  .screw {
+    position: absolute; width: 10px; height: 10px; border-radius: 50%;
+    background: radial-gradient(circle at 35% 35%, #3c3c3f, #111);
+    border: 1px solid #111; box-shadow: inset 0 1px 2px #444;
+  }
+  .screw::after {
+    content: ''; position: absolute; top: 50%; left: 50%; width: 60%; height: 1px;
+    background: #222; transform: translate(-50%, -50%) rotate(45deg);
+  }
+  .screw.tl { top: 9px; left: 10px; } .screw.tr { top: 9px; right: 10px; }
+  .screw.bl { bottom: 9px; left: 10px; } .screw.br { bottom: 9px; right: 10px; }
+
+  .panel-bezel {
+    background: #050505; border-radius: 6px; padding: 6px;
+    box-shadow: inset 0 2px 6px rgba(0,0,0,.8), 0 0 0 1px #0f0f10;
+  }
+  #canvas-wrap { position: relative; line-height: 0; }
+  canvas#panel {
+    display: block; width: 100%; height: auto; aspect-ratio: 2 / 1;
+    image-rendering: pixelated; border-radius: 3px;
+  }
+  .panel-glow {
+    position: absolute; inset: -18px; border-radius: 20px; pointer-events: none;
+    background: radial-gradient(ellipse at center, rgba(255,149,0,.07) 0%, transparent 70%);
+  }
+
+  /* status strip under the panel: what the device is doing right now */
+  .status-strip {
+    display: grid; grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 10px; margin-top: 16px;
+  }
+  .stat { min-width: 0; }
+  .stat .k { font-size: 9px; letter-spacing: .2em; text-transform: uppercase; color: var(--ink-faint); }
+  .stat .v { font-size: 13px; color: var(--ink); margin-top: 3px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .v.up { color: var(--green); } .v.down { color: var(--red); } .v.muted { color: var(--ink-dim); }
+
+  /* ── Cards (right column) ── */
+  .controls { display: flex; flex-direction: column; gap: 14px; }
+  .card {
+    background: var(--card); border: 1px solid var(--card-edge); border-radius: 12px;
+    padding: 14px 14px 15px;
+  }
+  .card h2 {
+    font-family: var(--head); font-weight: 500; font-size: 10px; letter-spacing: .24em;
+    text-transform: uppercase; color: var(--ink-dim); margin-bottom: 12px;
+  }
+
+  button.ctl, select.ctl {
+    font-family: var(--mono); font-size: 11px; letter-spacing: .08em;
+    background: #1a1a1d; color: var(--ink-dim);
+    border: 1px solid #2c2c31; border-radius: 7px;
+    padding: 8px 10px; cursor: pointer; min-height: 34px;
+    transition: color .12s, border-color .12s, background .12s;
+  }
+  button.ctl:hover { color: var(--ink); border-color: #44444b; background: #202024; }
+  button.ctl:focus-visible, .phys-btn:focus-visible, input[type=range]:focus-visible {
+    outline: 2px solid var(--orange); outline-offset: 2px;
+  }
+  button.ctl.active { color: var(--orange); border-color: var(--orange); background: var(--orange-lo); }
+
+  .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+  .grid2 .wide { grid-column: 1 / -1; }
+
+  /* ── Device buttons (6×6 tactile switches, like the real ones) ── */
+  .dev-btn-row {
+    display: grid; grid-template-columns: 52px minmax(0, 1fr); gap: 12px; align-items: center;
+    padding: 6px 0;
+  }
+  .dev-btn-row + .dev-btn-row { border-top: 1px solid #1f1f23; }
+  .phys-btn {
+    width: 46px; height: 46px; border-radius: 6px; position: relative;
+    background: linear-gradient(160deg, #2a2a2e, #101012);
+    border: 1px solid #050505;
+    box-shadow: 0 3px 6px rgba(0,0,0,.6), inset 0 1px 0 #3a3a3f;
+    cursor: pointer; touch-action: none; user-select: none; -webkit-user-select: none;
+  }
+  .phys-btn::after { /* round actuator cap */
+    content: ''; position: absolute; inset: 11px; border-radius: 50%;
+    background: radial-gradient(circle at 38% 32%, #3a3a3f, #0d0d0f 75%);
+    box-shadow: 0 2px 2px rgba(0,0,0,.7), inset 0 1px 0 #4a4a50;
+    transition: transform .06s, box-shadow .06s;
+  }
+  .phys-btn.pressed::after {
+    transform: scale(.86);
+    box-shadow: 0 0 10px var(--orange), inset 0 1px 0 #4a4a50;
+  }
+  .phys-btn.disabled { cursor: not-allowed; opacity: .35; }
+  .dev-btn-text .name { font-size: 12px; color: var(--ink); }
+  .dev-btn-text .name kbd { margin-left: 6px; }
+  .dev-btn-text .legend { font-size: 10.5px; color: var(--ink-dim); margin-top: 3px; line-height: 1.45; }
+
+  kbd {
+    font-family: var(--mono); font-size: 10px; color: var(--ink-dim);
+    border: 1px solid #34343a; border-bottom-width: 2px; border-radius: 4px;
+    padding: 0 5px; background: #19191c;
+  }
+
+  /* hold-both control + reboot countdown */
+  .hold-both {
+    margin-top: 10px; width: 100%;
+    touch-action: none; user-select: none; -webkit-user-select: none;
+  }
+  .hold-both.pressed { color: var(--orange); border-color: var(--orange); background: var(--orange-lo); }
+  .reboot-meter {
+    height: 4px; border-radius: 2px; background: #202024; margin-top: 10px; overflow: hidden;
+  }
+  .reboot-meter .fill { height: 100%; width: 0; background: var(--red); }
+  .reboot-status { font-size: 10.5px; color: var(--ink-dim); margin-top: 6px; min-height: 15px; }
+  .reboot-status.live { color: var(--red); }
+  .hint { font-size: 10.5px; color: var(--ink-faint); margin-top: 8px; line-height: 1.5; }
+
+  /* brightness */
+  .slider-row { display: flex; align-items: center; gap: 12px; }
+  input[type=range] {
+    -webkit-appearance: none; appearance: none; flex: 1; height: 4px;
+    background: #2a2a2f; border-radius: 2px; outline: none;
+  }
+  input[type=range]::-webkit-slider-thumb {
+    -webkit-appearance: none; width: 16px; height: 16px; border-radius: 50%;
+    background: var(--orange); cursor: pointer; border: 0;
+  }
+  input[type=range]::-moz-range-thumb {
+    width: 16px; height: 16px; border-radius: 50%; background: var(--orange); cursor: pointer; border: 0;
+  }
+  #brightness-val { min-width: 30px; text-align: right; color: var(--ink); }
+
+  /* ── Web control page preview (phone frame) ── */
+  .phone {
+    border-radius: 26px; padding: 10px; background: #050506;
+    box-shadow: 0 0 0 1px #2b2b2e, inset 0 0 0 1px #1a1a1d, 0 8px 24px rgba(0,0,0,.6);
+  }
+  .phone .bar {
+    display: flex; align-items: center; gap: 6px; margin: 2px 6px 8px;
+    font-size: 10.5px; color: var(--ink-dim);
+  }
+  .phone .bar .url {
+    flex: 1; min-width: 0; background: #151518; border: 1px solid #232327; border-radius: 8px;
+    padding: 4px 8px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  }
+  .phone .bar button {
+    background: none; border: 0; color: var(--ink-dim); font: inherit; font-size: 14px;
+    cursor: pointer; padding: 0 4px; line-height: 1;
+  }
+  .phone .bar button:hover { color: var(--ink); }
+  #viewToggle { font-size: 10.5px !important; border: 1px solid #232327 !important; border-radius: 6px; padding: 3px 6px !important; }
+  .phone .screen { position: relative; border-radius: 16px; overflow: hidden; background: #0a0a0a; }
+  .phone iframe {   /* laid out at a real phone's width (390 px), scaled to fit the frame */
+    position: absolute; top: 0; left: 0; width: 390px; height: 760px; border: 0;
+    transform-origin: 0 0; background: #0a0a0a;
+  }
+
+  /* ── Keep the panel in view while using the controls ──
+     Desktop: the device column stays put while the controls column scrolls.
+     Phones: the controls stack under the panel, and the panel sticks to the
+     top of the screen, so anything you tap (New block, the device buttons…)
+     plays out where you can see it. */
+  .device { position: sticky; top: 16px; }
+  /* Desktop view of the web control page: it sits under the display, full
+     column width, like a browser window. The display column then scrolls
+     with the page instead of staying pinned (a pinned column taller than the
+     window would hide the bottom of the page). */
+  .layout.desk-view .device { position: static; }
+  #control-slot-desk:not(:empty) { margin-top: 22px; }
+  .card.wide .phone { border-radius: 14px; }
+  .card.wide .phone .screen { border-radius: 8px; }
+  html { scroll-padding-top: var(--pinned-h, 0px); }   /* focus/scroll-into-view stops below the pinned panel */
+
+  @media (max-width: 980px) {
+    body { padding: 0 12px 28px; }
+    header.top { padding-top: 16px; margin-bottom: 12px; }
+    .layout { grid-template-columns: minmax(0, 1fr); gap: 12px; }
+    .device {
+      top: 0; z-index: 5;
+      background: var(--bg);
+      margin: 0 -12px; padding: 8px 12px 10px;      /* full-bleed so controls don't peek past the sides */
+      box-shadow: 0 10px 14px -8px rgba(0,0,0,.9); /* shows where the controls slide underneath */
+    }
+    .enclosure { padding: 10px 10px 8px; border-radius: 12px; }
+    .screw { display: none; }
+    .panel-bezel { padding: 4px; }
+    .status-strip { grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 4px 8px; margin-top: 8px; }
+    .stat .k { font-size: 8px; letter-spacing: .12em; }
+    .stat .v { font-size: 11px; margin-top: 1px; }
+    .card { padding: 12px; }
+    .card h2 { margin-bottom: 9px; }
+  }
+
+  /* Phone on its side: not enough height to stack, so go back to side by
+     side — panel on the left (fixed), controls scroll on the right. */
+  @media (max-width: 980px) and (orientation: landscape) and (max-height: 560px) {
+    .layout { grid-template-columns: minmax(0, 1fr) minmax(0, 300px); }
+    .device { margin: 0; padding: 8px 0 0; box-shadow: none; }
+    header.top { display: none; }
+    body { padding: 0 12px 16px; }
+  }
+</style>
+</head>
+<body>
+<div class="page">
+
+<header class="top">
+  <h1>Block<span>Grid</span> &nbsp;simulator</h1>
+  <div class="spec">96×48 · P2.5 · HUB75 · ESP32</div>
+</header>
+
+<div class="layout">
+
+  <!-- ── The device ── -->
+  <section class="device">
+    <div class="enclosure">
+      <div class="screw tl"></div><div class="screw tr"></div>
+      <div class="screw bl"></div><div class="screw br"></div>
+      <div class="panel-bezel">
+        <div id="canvas-wrap">
+          <div class="panel-glow"></div>
+          <canvas id="panel" width="96" height="48" aria-label="Simulated LED matrix"></canvas>
+        </div>
+      </div>
+
+      <div class="status-strip" aria-live="polite">
+        <div class="stat"><div class="k">Screen</div><div class="v" id="s-mode">Splash</div></div>
+        <div class="stat"><div class="k">Theme</div><div class="v" id="brand-readout">Bitcoin</div></div>
+        <div class="stat"><div class="k">Currency</div><div class="v" id="currency-readout">USD</div></div>
+        <div class="stat"><div class="k">Brightness</div><div class="v" id="s-brightness">215</div></div>
+        <div class="stat"><div class="k">Price</div><div class="v" id="s-price">–</div></div>
+        <div class="stat"><div class="k">24h change</div><div class="v" id="s-change">–</div></div>
+        <div class="stat"><div class="k">Sats</div><div class="v" id="s-sats">–</div></div>
+        <div class="stat"><div class="k">Block</div><div class="v" id="s-block">–</div></div>
+      </div>
+    </div>
+    <div id="control-slot-desk"></div>
+  </section>
+
+  <!-- ── Controls ── -->
+  <aside class="controls">
+
+    <div class="card">
+      <h2>Device buttons</h2>
+      <div class="dev-btn-row">
+        <div class="phys-btn" id="phys-btn-brand" role="button" tabindex="0" aria-label="Top button"></div>
+        <div class="dev-btn-text">
+          <div class="name">Top button <kbd>↑</kbd></div>
+          <div class="legend">Tap: brightness up · Hold: next theme</div>
+        </div>
+      </div>
+      <div class="dev-btn-row">
+        <div class="phys-btn" id="phys-btn-currency" role="button" tabindex="0" aria-label="Bottom button"></div>
+        <div class="dev-btn-text">
+          <div class="name">Bottom button <kbd>↓</kbd></div>
+          <div class="legend">Tap: brightness down (at the lowest: display off) · Hold: next currency</div>
+        </div>
+      </div>
+      <button class="ctl hold-both" id="hold-both">Press &amp; hold both buttons</button>
+      <div class="reboot-meter"><div class="fill" id="reboot-fill"></div></div>
+      <div class="reboot-status" id="reboot-status">Hold both for 3 s to reboot</div>
+      <div class="hint">Keyboard: hold <kbd>↑</kbd> and <kbd>↓</kbd> together for the same gesture. Buttons are inactive during the splash and in AP mode, as on the device.</div>
+    </div>
+
+    <div class="card">
+      <h2>Screen</h2>
+      <div class="grid2">
+        <button class="ctl" id="btn-normal" onclick="selectScreen('normal')">Normal</button>
+        <button class="ctl" id="btn-err"    onclick="selectScreen('error')">API error</button>
+        <button class="ctl" id="btn-ap"     onclick="selectScreen('ap')">AP setup</button>
+        <button class="ctl" id="btn-splash" onclick="selectScreen('splash')">Splash (loop)</button>
+        <button class="ctl wide" onclick="replayBoot()">Replay boot sequence</button>
+      </div>
+    </div>
+
+    <div class="card">
+      <h2>Data</h2>
+      <div class="grid2">
+        <button class="ctl" id="btn-new-block" onclick="startNewBlockAnimation()">New block</button>
+        <button class="ctl" onclick="randomise()">Randomise</button>
+        <button class="ctl" onclick="togglePriceDirection()">Flip 24h ↑↓</button>
+        <button class="ctl" onclick="setChangeMissing()">24h % missing</button>
+        <button class="ctl" onclick="priceTick()">Price tick</button>
+        <select class="ctl" id="price-anim-style" onchange="setPriceFx(PRICE_FX.indexOf(this.value)); priceTick()" aria-label="Price change effect">
+          <option value="fade">Effect: flash</option>
+          <option value="roll">Effect: roll</option>
+          <option value="sweep">Effect: sweep</option>
+          <option value="off">Effect: off</option>
+        </select>
+      </div>
+    </div>
+
+    <div class="card">
+      <h2>Brightness</h2>
+      <div class="slider-row">
+        <input type="range" id="brightness" min="1" max="255" value="215" aria-label="Brightness"
+               oninput="if (displayOff) displayOff = false; repaint(); document.getElementById('brightness-val').textContent = this.value; updateStatus();">
+        <span id="brightness-val">215</span>
+      </div>
+    </div>
+
+    <div id="control-slot-phone">
+    <div class="card" id="control-card">
+      <h2>Web control page</h2>
+      <div class="phone">
+        <div class="bar"><span class="url">blockgrid-3f2a.local</span><button id="viewToggle" onclick="toggleControlView()" title="Show the page as a desktop browser would">Desktop</button><button onclick="popControlPage()" title="Open the page full size in its own window" aria-label="Open in a window">↗</button><button onclick="loadControlPage()" title="Reload page" aria-label="Reload page">↻</button></div>
+        <div class="screen" id="control-screen"><iframe id="control-page" title="BlockGrid web control page"></iframe></div>
+      </div>
+      <div class="hint" id="control-hint">The page BlockGrid serves on your Wi-Fi, running against this simulated device. Changes made with the device buttons show up here within 5 s, as they would on a phone. It's unreachable while the device reboots. The Wi-Fi card joins any listed network with a password of 8+ characters except “wrongpassword”. My node answers at any private-network address (192.168.…).</div>
+    </div>
+    </div>
+
+  </aside>
+</div>
+</div>
+
+<script>
+// ─────────────────────────────────────────────
+//  Tiny pixel-font renderer (5×7 bitmap glyphs)
+// ─────────────────────────────────────────────
+const FONT5x7 = {
+  ' ': [0,0,0,0,0],
+  '!': [0x00,0x00,0x5F,0x00,0x00],
+  '$': [0x24,0x2A,0x7F,0x2A,0x12],
+  '%': [0x23,0x13,0x08,0x64,0x62],   // same bytes as Adafruit GFX's built-in font
+  '.': [0x00,0x60,0x60,0x00,0x00],
+  '/': [0x20,0x10,0x08,0x04,0x02],
+  ':': [0x00,0x36,0x36,0x00,0x00],
+  'A': [0x7E,0x11,0x11,0x11,0x7E],
+  'B': [0x7F,0x49,0x49,0x49,0x36],
+  'C': [0x3E,0x41,0x41,0x41,0x22],
+  'D': [0x7F,0x41,0x41,0x22,0x1C],
+  'E': [0x7F,0x49,0x49,0x49,0x41],
+  'F': [0x7F,0x09,0x09,0x09,0x01],
+  'G': [0x3E,0x41,0x49,0x49,0x7A],
+  'H': [0x7F,0x08,0x08,0x08,0x7F],
+  'I': [0x00,0x41,0x7F,0x41,0x00],
+  'J': [0x20,0x40,0x40,0x3F,0x00],
+  'K': [0x7F,0x08,0x14,0x22,0x41],
+  '¥': [0x2B,0x2F,0x7C,0x2F,0x2B],  // Adafruit_GFX's built-in glyph (CP437 0x9D), truncated to 7 rows
+  '€': [0x14,0x3E,0x55,0x55,0x41],  // the sketch's BlockGridFont5x7 at 0x9E
+  'L': [0x7F,0x40,0x40,0x40,0x40],
+  'M': [0x7F,0x02,0x0C,0x02,0x7F],
+  'N': [0x7F,0x04,0x08,0x10,0x7F],
+  'O': [0x3E,0x41,0x41,0x41,0x3E],
+  'P': [0x7F,0x09,0x09,0x09,0x06],
+  'Q': [0x3E,0x41,0x51,0x21,0x5E],
+  'R': [0x7F,0x09,0x19,0x29,0x46],
+  'S': [0x46,0x49,0x49,0x49,0x31],
+  'T': [0x01,0x01,0x7F,0x01,0x01],
+  'U': [0x3F,0x40,0x40,0x40,0x3F],
+  'V': [0x1F,0x20,0x40,0x20,0x1F],
+  'W': [0x3F,0x40,0x38,0x40,0x3F],
+  'X': [0x63,0x14,0x08,0x14,0x63],
+  'Y': [0x07,0x08,0x70,0x08,0x07],
+  'Z': [0x61,0x51,0x49,0x45,0x43],
+  '0': [0x3E,0x51,0x49,0x45,0x3E],
+  '1': [0x00,0x42,0x7F,0x40,0x00],
+  '2': [0x42,0x61,0x51,0x49,0x46],
+  '3': [0x21,0x41,0x45,0x4B,0x31],
+  '4': [0x18,0x14,0x12,0x7F,0x10],
+  '5': [0x27,0x45,0x45,0x45,0x39],
+  '6': [0x3C,0x4A,0x49,0x49,0x30],
+  '7': [0x01,0x71,0x09,0x05,0x03],
+  '8': [0x36,0x49,0x49,0x49,0x36],
+  '9': [0x06,0x49,0x49,0x29,0x1E],
+  ',': [0x00,0x50,0x30,0x00,0x00],
+  // lowercase
+  'a': [0x20,0x54,0x54,0x54,0x78],
+  'b': [0x7F,0x48,0x44,0x44,0x38],
+  'c': [0x38,0x44,0x44,0x44,0x20],
+  'd': [0x38,0x44,0x44,0x48,0x7F],
+  'e': [0x38,0x54,0x54,0x54,0x18],
+  'f': [0x08,0x7E,0x09,0x01,0x02],
+  'g': [0x08,0x54,0x54,0x54,0x3C],
+  'h': [0x7F,0x08,0x04,0x04,0x78],
+  'i': [0x00,0x44,0x7D,0x40,0x00],
+  'j': [0x20,0x40,0x44,0x3D,0x00],
+  'k': [0x7F,0x10,0x28,0x44,0x00],
+  'l': [0x00,0x41,0x7F,0x40,0x00],
+  'm': [0x7C,0x04,0x18,0x04,0x78],
+  'n': [0x7C,0x08,0x04,0x04,0x78],
+  'o': [0x38,0x44,0x44,0x44,0x38],
+  'p': [0x7C,0x14,0x14,0x14,0x08],
+  'q': [0x08,0x14,0x14,0x18,0x7C],
+  'r': [0x7C,0x08,0x04,0x04,0x08],
+  's': [0x48,0x54,0x54,0x54,0x20],
+  't': [0x04,0x3F,0x44,0x40,0x20],
+  'u': [0x3C,0x40,0x40,0x20,0x7C],
+  'v': [0x1C,0x20,0x40,0x20,0x1C],
+  'w': [0x3C,0x40,0x30,0x40,0x3C],
+  'x': [0x44,0x28,0x10,0x28,0x44],
+  'y': [0x0C,0x50,0x50,0x50,0x3C],
+  'z': [0x44,0x64,0x54,0x4C,0x44],
+  // Punctuation the table above didn't have yet — the device's own glyphs
+  // (Adafruit GFX classic font), first 7 rows, so both render them alike.
+  '"': [0x00,0x07,0x00,0x07,0x00],
+  '#': [0x14,0x7F,0x14,0x7F,0x14],
+  '&': [0x36,0x49,0x56,0x20,0x50],
+  '\'': [0x00,0x08,0x07,0x03,0x00],
+  '(': [0x00,0x1C,0x22,0x41,0x00],
+  ')': [0x00,0x41,0x22,0x1C,0x00],
+  '*': [0x2A,0x1C,0x7F,0x1C,0x2A],
+  '+': [0x08,0x08,0x3E,0x08,0x08],
+  '-': [0x08,0x08,0x08,0x08,0x08],
+  ';': [0x00,0x40,0x34,0x00,0x00],
+  '<': [0x00,0x08,0x14,0x22,0x41],
+  '=': [0x14,0x14,0x14,0x14,0x14],
+  '>': [0x00,0x41,0x22,0x14,0x08],
+  '?': [0x02,0x01,0x59,0x09,0x06],
+  '@': [0x3E,0x41,0x5D,0x59,0x4E],
+  '[': [0x00,0x7F,0x41,0x41,0x41],
+  '\\': [0x02,0x04,0x08,0x10,0x20],
+  ']': [0x00,0x41,0x41,0x41,0x7F],
+  '^': [0x04,0x02,0x01,0x02,0x04],
+  '_': [0x40,0x40,0x40,0x40,0x40],
+  '`': [0x00,0x03,0x07,0x08,0x00],
+  '{': [0x00,0x08,0x36,0x41,0x00],
+  '|': [0x00,0x00,0x77,0x00,0x00],
+  '}': [0x00,0x41,0x36,0x08,0x00],
+  '~': [0x02,0x01,0x02,0x04,0x02],
+};
+
+function getGlyph(ch) {
+  return FONT5x7[ch] || FONT5x7[ch.toUpperCase()] || [0x7F,0x41,0x41,0x41,0x7F];
+}
+
+// ─────────────────────────────────────────────
+//  Virtual framebuffer: 96×48, each cell = {r,g,b}
+// ─────────────────────────────────────────────
+const W = 96, H = 48;
+const fb = new Uint8Array(W * H * 3); // r,g,b per pixel
+
+function fbSet(x, y, r, g, b) {
+  if (x < 0 || x >= W || y < 0 || y >= H) return;
+  const i = (y * W + x) * 3;
+  fb[i] = r; fb[i+1] = g; fb[i+2] = b;
+}
+function fbClear() { fb.fill(0); }
+
+// draw text (size 1 = 5×7, size 2 = 10×14)
+function drawText(str, x, y, r, g, b, size=1) {
+  let cx = x;
+  for (const ch of str) {
+    if (ch === ' ') { cx += 4 * size; continue; }
+    const glyph = getGlyph(ch);
+    for (let col = 0; col < 5; col++) {
+      const colData = glyph[col];
+      for (let row = 0; row < 7; row++) {
+        if (colData & (1 << row)) {
+          for (let sy = 0; sy < size; sy++)
+            for (let sx = 0; sx < size; sx++)
+              fbSet(cx + col*size + sx, y + row*size + sy, r, g, b);
+        }
+      }
+    }
+    cx += (5 + 1) * size;
+  }
+  return cx;  // final x, one glyph-cell past the last character drawn
+}
+
+// Same advance logic as drawText, without drawing — used to compute a
+// centered starting x for a line before actually rendering it.
+// Subtle pixel bevel, the same treatment as the beveled logos: whatever
+// draw() paints is re-coloured so every lit pixel whose top or left
+// neighbour is dark gets the highlight, one whose bottom or right neighbour
+// is dark gets the shadow (a pixel with both keeps the body colour), and
+// the rest the body colour. Light from the top-left, like the logos and the
+// blockchain blocks. shades = { hi, body, shadow } as [r,g,b].
+const SUBTLE_BEVEL = { hi: [255, 255, 255], body: [215, 215, 215], shadow: [150, 150, 150] };
+function drawBeveled(draw, shades = SUBTLE_BEVEL) {
+  const saved = fb.slice();
+  fbClear();
+  draw();
+  const lit = (px, py) => px >= 0 && py >= 0 && px < W && py < H &&
+    (fb[(py * W + px) * 3] | fb[(py * W + px) * 3 + 1] | fb[(py * W + px) * 3 + 2]) > 0;
+  const pixels = [];
+  for (let py = 0; py < H; py++) for (let px = 0; px < W; px++) {
+    if (!lit(px, py)) continue;
+    const litEdge = !lit(px, py - 1) || !lit(px - 1, py);
+    const shadeEdge = !lit(px, py + 1) || !lit(px + 1, py);
+    pixels.push([px, py, litEdge && !shadeEdge ? shades.hi : shadeEdge && !litEdge ? shades.shadow : shades.body]);
+  }
+  fb.set(saved);
+  for (const [px, py, c] of pixels) fbSet(px, py, c[0], c[1], c[2]);
+}
+function drawTextBeveled(str, x, y, size, shades) {
+  drawBeveled(() => drawText(str, x, y, 255, 255, 255, size), shades);
+}
+
+function measureTextWidth(str, size=1) {
+  let w = 0;
+  for (const ch of str) w += (ch === ' ') ? 4 * size : (5 + 1) * size;
+  return w;
+}
+
+// Pixel-art block primitive.  The simulator uses the same 7x7 block image
+// during the incoming-block animation so the number really transforms into
+// a block before it joins the chain.
+function drawBlockImage(bx, y0, r, g, b, pixelWriter = fbSet) {
+  const hi = [r + (255-r)*0.55, g + (255-g)*0.55, b + (255-b)*0.55].map(Math.round);
+  const sh = [r*0.5, g*0.5, b*0.5].map(Math.round);
+
+  // Filled interior
+  for (let yy = 1; yy < 6; yy++)
+    for (let xx = 1; xx < 6; xx++)
+      pixelWriter(bx + xx, y0 + yy, r, g, b);
+
+  // Top + left edges = highlight
+  for (let i = 0; i < 7; i++) {
+    pixelWriter(bx + i, y0,     hi[0], hi[1], hi[2]);
+    pixelWriter(bx,     y0 + i, hi[0], hi[1], hi[2]);
+  }
+
+  // Bottom + right edges = shadow
+  for (let i = 0; i < 7; i++) {
+    pixelWriter(bx + i, y0 + 6, sh[0], sh[1], sh[2]);
+    pixelWriter(bx + 6, y0 + i, sh[0], sh[1], sh[2]);
+  }
+}
+
+// Three linked 3D blocks with 3-pixel connectors. Each gets its own
+// color — first (oldest) darkest, middle in between, third (newest)
+// brightest/current — reading as a gradient fading into history rather
+// than a hard cut between "old" and "current." Each link matches the
+// block it's leaving from, so the gradient reads continuously along the
+// whole chain rather than jumping at the connectors.
+function drawBlockchainIcon(x0, y0, r, g, b, midColor, newestColor) {
+  const write = fbSet;
+  drawBlockImage(x0, y0, r, g, b, write);
+  for (let i = 0; i < 3; i++) fbSet(x0 + 7 + i, y0 + 3, r, g, b);
+  const [mr, mg, mb] = midColor || [r, g, b];
+  drawBlockImage(x0 + 10, y0, mr, mg, mb, write);
+  for (let i = 0; i < 3; i++) fbSet(x0 + 17 + i, y0 + 3, mr, mg, mb);
+  const [nr, ng, nb] = newestColor || [r, g, b];
+  drawBlockImage(x0 + 20, y0, nr, ng, nb, write);
+}
+
+// Small solid triangle indicating price direction over the reference
+// period (daily change) — green pointing up for a gain, red pointing
+// down for a loss. y is the row's baseline (same y passed to drawText);
+// the triangle is vertically centered within the 7px glyph height on its
+// own. Drawn as the first part of the 24h change indicator (see
+// drawChangeIndicator), not beside the price itself.
+const ARROW_W = 5, ARROW_GAP = 2;
+function drawPriceArrow(x, y, up) {
+  const color = up ? [0, 255, 70] : [255, 60, 60];
+  const rows = up
+    ? [[2], [1,2,3], [0,1,2,3,4]]   // point at top, widening downward
+    : [[0,1,2,3,4], [1,2,3], [2]];  // wide at top, point at bottom
+  rows.forEach((cols, ry) => {
+    cols.forEach(cx => fbSet(x + cx, y + 2 + ry, color[0], color[1], color[2]));
+  });
+}
+
+// draw 16-bit RGB565 bitmap
+function drawBitmap565(bmpData, bx, by, bw, bh, tint) {
+  for (let row = 0; row < bh; row++) {
+    for (let col = 0; col < bw; col++) {
+      const px = bmpData[row * bw + col];
+      if (px === 0) continue; // "off" pixel, regardless of tint
+      let r, g, b;
+      if (tint) {
+        [r, g, b] = tint;
+      } else {
+        r = ((px >> 11) & 0x1F) << 3;
+        g = ((px >> 5)  & 0x3F) << 2;
+        b = ( px        & 0x1F) << 3;
+        if (!r && !g && !b) continue;
+      }
+      fbSet(bx + col, by + row, r, g, b);
+    }
+  }
+}
+
+// Draws a sequence of characters, each trimmed to its own tight column
+// range (skipping the blank cell padding each Misaki glyph has on its
+// sides), scaled uniformly, and packed with a small scaled gap between
+// them. This fits noticeably larger text in the same width than scaling
+// the full fixed-width cells would, since we're not paying for padding
+// that has no content. regions: [{x, w}] — x/w are column ranges within
+// bmpData's full width, srcH the full source height (kept untrimmed
+// vertically so characters like small ッ, which is deliberately shorter,
+// stay correctly positioned relative to the others).
+function drawKatakanaScaled(bmpData, srcFullW, srcH, regions, bx, by, scale, gapSrc, tint) {
+  const dstH = Math.round(srcH * scale);
+  const scaledGap = Math.round(gapSrc * scale);
+  let cx = bx;
+  for (const { x: srcX, w: srcW } of regions) {
+    const dstW = Math.round(srcW * scale);
+    for (let row = 0; row < dstH; row++) {
+      const srcRow = Math.floor(row * srcH / dstH);
+      for (let col = 0; col < dstW; col++) {
+        const srcCol = srcX + Math.floor(col * srcW / dstW);
+        const px = bmpData[srcRow * srcFullW + srcCol];
+        if (px === 0) continue;
+        let r, g, b;
+        if (tint) {
+          [r, g, b] = tint;
+        } else {
+          r = ((px >> 11) & 0x1F) << 3;
+          g = ((px >> 5)  & 0x3F) << 2;
+          b = ( px        & 0x1F) << 3;
+          if (!r && !g && !b) continue;
+        }
+        fbSet(cx + col, by + row, r, g, b);
+      }
+    }
+    cx += dstW + scaledGap;
+  }
+  return cx - scaledGap; // final right edge, for centering calculations
+}
+
+// Placeholder mark for a bitmap slot with no data yet — mirrors
+// drawPlaceholderBox() in the sketch (dim outline box + a "+").
+function drawPlaceholderBox(x, y, w, h) {
+  const [r, g, b] = [120, 120, 120];
+  for (let i = 0; i < w; i++) { fbSet(x + i, y, r, g, b); fbSet(x + i, y + h - 1, r, g, b); }
+  for (let j = 0; j < h; j++) { fbSet(x, y + j, r, g, b); fbSet(x + w - 1, y + j, r, g, b); }
+  if (w >= 6 && h >= 6) {
+    const midX = x + Math.floor(w / 2), midY = y + Math.floor(h / 2);
+    for (let j = y + 2; j <= y + h - 3; j++) fbSet(midX, j, r, g, b);
+    for (let i = x + 2; i <= x + w - 3; i++) fbSet(i, midY, r, g, b);
+  }
+}
+
+// ─────────────────────────────────────────────
+//  Bitcoin logo pixel data (21×28, RGB565)
+// ─────────────────────────────────────────────
+// Bitcoin logo, 21x28 RGB565. Generated from the official high-res PNG
+// with a subtle bevel (option B: 2px bevel, 30% highlight / 30% shadow)
+// computed at full resolution, then area-averaged down so edges stay
+// anti-aliased. Light from the top-left, matching the blockchain blocks.
+const LOGO_DATA = new Uint16Array([
+  0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0xB3C6, 0xB3A5, 0x51A1, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000,
+  0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0820, 0xF549, 0xDC44, 0x6A01, 0x0000, 0x59E3, 0xB3A5, 0x7222, 0x0000, 0x0000, 0x0000, 0x0000,
+  0x0000, 0x0000, 0x0000, 0x0000, 0x1060, 0x0020, 0x0000, 0x0000, 0x0000, 0x3942, 0xFD49, 0xC3A2, 0x3900, 0x0000, 0xA386, 0xF4E7, 0xBB62, 0x0000, 0x0000, 0x0000, 0x0000,
+  0x0000, 0x0000, 0x0000, 0x0000, 0xA386, 0xECE7, 0xB3A5, 0x7263, 0x3121, 0x82C5, 0xF508, 0xBB62, 0x0840, 0x0000, 0xE4C9, 0xDC24, 0x7A41, 0x0000, 0x0000, 0x0000, 0x0000,
+  0x0000, 0x0000, 0x0000, 0x0000, 0xE4A7, 0xECA5, 0xF4C5, 0xFD07, 0xFD27, 0xFD6A, 0xECC6, 0xCBC2, 0x51A2, 0x3942, 0xFD6A, 0xCBC3, 0x4961, 0x0000, 0x0000, 0x0000, 0x0000,
+  0x0000, 0x0000, 0x0000, 0x0020, 0x7221, 0xA302, 0xE443, 0xFCE5, 0xFD27, 0xFD28, 0xE464, 0xF4C5, 0xFD07, 0xFD49, 0xFD49, 0xCBC2, 0x4961, 0x0000, 0x0000, 0x0000, 0x0000,
+  0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x6A02, 0xFD07, 0xFD07, 0xCBC2, 0xB342, 0xCBC2, 0xDC23, 0xEC85, 0xEC85, 0xF484, 0xFCE6, 0xBBC4, 0x3921, 0x0000, 0x0000,
+  0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x51A3, 0xFD6A, 0xF507, 0xBB82, 0xB362, 0x61E1, 0x92A1, 0xCBC2, 0xDC02, 0xEC63, 0xF4E5, 0xFCE5, 0xF4C4, 0x8282, 0x0000,
+  0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x8B05, 0xFD6A, 0xECC6, 0xBB62, 0xA302, 0x0000, 0x0000, 0x0020, 0x51A1, 0xDC02, 0xF4A3, 0xFCE5, 0xF4A4, 0xEC63, 0x59C1,
+  0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0xCC68, 0xFD6A, 0xDC44, 0xBB62, 0x7221, 0x0000, 0x0000, 0x0000, 0x0000, 0x20A0, 0xECA5, 0xFD06, 0xF4A4, 0xDC22, 0xBB62,
+  0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x1060, 0xF56A, 0xFD6A, 0xCBE3, 0xBB62, 0x4961, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0xBBE6, 0xFD49, 0xECA5, 0xCBA2, 0xD3E2,
+  0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x49A2, 0xFD6A, 0xF528, 0xC382, 0xBB62, 0x1880, 0x0000, 0x0000, 0x0000, 0x0000, 0x0020, 0xE4E9, 0xFD6A, 0xE464, 0xBB62, 0xAB22,
+  0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x8B05, 0xFD6A, 0xF507, 0xD3E2, 0xE423, 0x9B24, 0x61E2, 0x3101, 0x20A1, 0x3922, 0xABC7, 0xFD8B, 0xF528, 0xC382, 0xB342, 0x7201,
+  0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0xCC48, 0xFD6A, 0xE465, 0xBB62, 0xDC03, 0xECA5, 0xF506, 0xFD28, 0xFD49, 0xFD6A, 0xFD8B, 0xED08, 0xBB82, 0xB342, 0xA302, 0x1060,
+  0x0000, 0x0000, 0x0000, 0x0000, 0x1040, 0xF56A, 0xFD6A, 0xCBC3, 0xB342, 0xA2E2, 0xC3A2, 0xD402, 0xE423, 0xEC84, 0xF4E6, 0xF507, 0xC3A2, 0xBB62, 0x7221, 0x1060, 0x0000,
+  0x0000, 0x0000, 0x0000, 0x0000, 0x4982, 0xFD6A, 0xF528, 0xBB82, 0xBB62, 0x1880, 0x0000, 0x28C0, 0x6A01, 0xC3A2, 0xE443, 0xF463, 0xDC23, 0xF483, 0xC3C3, 0x1880, 0x0000,
+  0x0000, 0x0000, 0x0000, 0x0000, 0x8AE5, 0xFD6A, 0xECC6, 0xBB62, 0xAB22, 0x0000, 0x0000, 0x0000, 0x0000, 0x0020, 0x8281, 0xF4A3, 0xFCC5, 0xFCC5, 0xF4A3, 0xC3A2, 0x0000,
+  0x0000, 0x0000, 0x0000, 0x0000, 0xC448, 0xFD6A, 0xDC45, 0xBB62, 0x7A41, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0xB384, 0xFD07, 0xFCE5, 0xE443, 0xDC02, 0x4140,
+  0x0000, 0x9325, 0x6202, 0x59E3, 0xF56B, 0xFD6A, 0xCBE3, 0xBB62, 0x4961, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x7AA4, 0xFD49, 0xFD07, 0xD3E2, 0xC3A2, 0x61C1,
+  0x51C3, 0xFD6A, 0xFD28, 0xFD6A, 0xFD8B, 0xF528, 0xC3A2, 0xBB82, 0x1880, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0xBC08, 0xFD6A, 0xF506, 0xC3A2, 0xBB62, 0x4961,
+  0xBBC5, 0xEC84, 0xDC23, 0xE464, 0xE464, 0xE443, 0xDC02, 0xEC63, 0xDC66, 0x9B24, 0x6203, 0x3942, 0x3101, 0x4982, 0xABA7, 0xFD8B, 0xFD8A, 0xEC84, 0xBB62, 0xB362, 0x1880,
+  0x20A0, 0x59A1, 0x8AA1, 0xC3A2, 0xD3E2, 0xEC83, 0xD3E2, 0xDC23, 0xF4C5, 0xFD07, 0xFD28, 0xFD28, 0xFD49, 0xFD6A, 0xFD8B, 0xFD8B, 0xECC6, 0xC382, 0xAB42, 0x8A81, 0x0000,
+  0x0000, 0x0000, 0x0000, 0x0000, 0x51A2, 0xFD28, 0xBB82, 0xC3A2, 0xD3E2, 0xE443, 0xEC84, 0xDC24, 0xE485, 0xECA5, 0xE485, 0xD403, 0xBB62, 0xAB42, 0xAB22, 0x2080, 0x0000,
+  0x0000, 0x0000, 0x0000, 0x0000, 0x7264, 0xF508, 0xBB82, 0x1880, 0x3900, 0xECC6, 0xD424, 0xBB62, 0xCBC2, 0xCBC2, 0xC3A2, 0xBB82, 0xBB62, 0x92A1, 0x20A0, 0x0000, 0x0000,
+  0x0000, 0x0000, 0x0000, 0x0000, 0xABC7, 0xE4A6, 0xA302, 0x0000, 0x1880, 0xFD6A, 0xCBE3, 0x59A1, 0x1880, 0x3100, 0x4120, 0x3900, 0x1880, 0x0000, 0x0000, 0x0000, 0x0000,
+  0x0000, 0x0000, 0x0000, 0x0000, 0xE4C7, 0xD3E3, 0x7221, 0x0000, 0x51C3, 0xF549, 0xBB82, 0x28C0, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000,
+  0x0000, 0x0000, 0x0000, 0x0820, 0x6A01, 0x92C2, 0x4120, 0x0000, 0x9325, 0xE485, 0xB342, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000,
+  0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x59C1, 0x9AE2, 0x8261, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000,
+]);
+
+// ─────────────────────────────────────────────
+//  Brand and currency cycling — mirrors brandProfiles[]/currencyOptions[]
+//  in the sketch. Independent arrays, independent buttons: N brands + M
+//  currencies instead of needing N×M combined entries.
+// ─────────────────────────────────────────────
+// ビットコイン (Bittokoin, "Bitcoin" in katakana) — the authentic way
+// Bitcoin is written in Japan; sourced from the Misaki font's embedded
+// bitmaps, same as the 万/円 icons, assembled into one 48x8 wordmark.
+const BITCOIN_KATAKANA = new Uint16Array([0x0000, 0xFFFF, 0x0000, 0x0000, 0xFFFF, 0x0000, 0xFFFF, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0xFFFF, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0xFFFF, 0x0000, 0x0000, 0xFFFF, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0xFFFF, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0xFFFF, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0xFFFF, 0xFFFF, 0xFFFF, 0xFFFF, 0xFFFF, 0xFFFF, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0xFFFF, 0x0000, 0x0000, 0x0000, 0x0000, 0xFFFF, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0xFFFF, 0x0000, 0x0000, 0x0000, 0xFFFF, 0xFFFF, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0xFFFF, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0xFFFF, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0xFFFF, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0xFFFF, 0x0000, 0x0000, 0xFFFF, 0xFFFF, 0xFFFF, 0xFFFF, 0x0000, 0x0000, 0x0000, 0x0000, 0xFFFF, 0x0000, 0xFFFF, 0x0000, 0xFFFF, 0x0000, 0x0000, 0x0000, 0x0000, 0xFFFF, 0xFFFF, 0xFFFF, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0xFFFF, 0x0000, 0x0000, 0x0000, 0x0000, 0xFFFF, 0xFFFF, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0xFFFF, 0x0000, 0x0000, 0xFFFF, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0xFFFF, 0x0000, 0xFFFF, 0x0000, 0xFFFF, 0x0000, 0x0000, 0x0000, 0x0000, 0xFFFF, 0x0000, 0x0000, 0xFFFF, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0xFFFF, 0x0000, 0x0000, 0xFFFF, 0xFFFF, 0x0000, 0xFFFF, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0xFFFF, 0x0000, 0x0000, 0x0000, 0xFFFF, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0xFFFF, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0xFFFF, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0xFFFF, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0xFFFF, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0xFFFF, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0xFFFF, 0xFFFF, 0xFFFF, 0xFFFF, 0xFFFF, 0x0000, 0x0000, 0x0000, 0xFFFF, 0xFFFF, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0xFFFF, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0xFFFF, 0xFFFF, 0xFFFF, 0xFFFF, 0xFFFF, 0xFFFF, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0xFFFF, 0x0000, 0x0000, 0x0000, 0x0000, 0xFFFF, 0xFFFF, 0xFFFF, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000]);
+
+const brandProfiles = [
+  { logo: LOGO_DATA, title: 'ITCOIN', name: 'Bitcoin', color: [215, 215, 215], titleBevel: SUBTLE_BEVEL },
+  { logo: null, title: '', titleImage: BITCOIN_KATAKANA, titleImageW: 48, titleImageH: 8,
+    // Trimmed column ranges within the 48px-wide source for each of the 6
+    // characters (ビッコイン) — skips each glyph's blank cell padding so
+    // more of the panel's width goes to actual content, letting the scale
+    // go up from ~2x to ~2.4x. See drawKatakanaScaled().
+    titleImageRegions: [{x:1,w:6}, {x:9,w:5}, {x:18,w:4}, {x:25,w:6}, {x:33,w:6}, {x:41,w:6}],
+    titleImageScale: 92/38, titleImageGap: 1,
+    name: 'ビットコイン (Bitcoin)', color: [255, 255, 255], titleBevel: SUBTLE_BEVEL },
+];
+const currencyOptions = ['USD', 'EUR', 'JPY'];   // the sketch's currencyOptions[] order
+
+let currentBrandIndex = 0;
+let currentCurrencyIndex = 0;
+
+// Icon for the man (万, units of 10,000) unit on the JPY price line — 8x8,
+// pure on/off strokes (no anti-aliasing), mirroring image_data_manGlyph in
+// the sketch exactly. Sourced from the actual embedded bitmap in the
+// Misaki font (littlelimit.net) — an 8x8 Japanese font hand-designed
+// specifically for tiny displays, originally for the Sharp PC-E500 pocket
+// computer. Source bytes: 0xFE, 0x20, 0x3C, 0x24, 0x24, 0x44, 0x8C, 0x00.
+const manGlyph = new Uint16Array([0x07E0, 0x07E0, 0x07E0, 0x07E0, 0x07E0, 0x07E0, 0x07E0, 0x0000, 0x0000, 0x0000, 0x07E0, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x07E0, 0x07E0, 0x07E0, 0x07E0, 0x0000, 0x0000, 0x0000, 0x0000, 0x07E0, 0x0000, 0x0000, 0x07E0, 0x0000, 0x0000, 0x0000, 0x0000, 0x07E0, 0x0000, 0x0000, 0x07E0, 0x0000, 0x0000, 0x0000, 0x07E0, 0x0000, 0x0000, 0x0000, 0x07E0, 0x0000, 0x0000, 0x07E0, 0x0000, 0x0000, 0x0000, 0x07E0, 0x07E0, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000]);
+const MAN_GLYPH_SIZE = 8;
+
+// ¥ is printed with drawText() using the '¥' entry added to FONT5x7 above,
+// instead of a custom bitmap — mirrors the sketch, which prints it via the
+// built-in font (write(0x9D)) rather than drawRGBBitmap().
+
+function cycleBrand() {
+  currentBrandIndex = (currentBrandIndex + 1) % brandProfiles.length;
+  const readout = document.getElementById('brand-readout');
+  const b = brandProfiles[currentBrandIndex];
+  if (readout) readout.textContent = b.name;
+  redraw();
+}
+
+function cycleCurrency() {
+  currentCurrencyIndex = (currentCurrencyIndex + 1) % currencyOptions.length;
+  const readout = document.getElementById('currency-readout');
+  if (readout) readout.textContent = currencyOptions[currentCurrencyIndex];
+  redraw();
+}
+
+// Short press on either button — mirrors adjustBrightness() in the sketch,
+// driving the same slider used for manual preview so both stay in sync.
+const BRIGHTNESS_MIN = 1, BRIGHTNESS_MAX = 255;
+const BRIGHTNESS_LEVELS = [1, 2, 3, 4, 5, 6, 8, 10, 13, 17, 22, 28, 36, 46, 60, 77, 100, 128, 165, 210, 255];   // the sketch's, for the buttons
+
+// Display off — mirrors the sketch's displayOff / setDisplayOff(): the panel
+// goes dark (brightness 0) but everything keeps running. − at the lowest
+// brightness or the web page's switch turns it off; any button press, the
+// switch or moving a brightness slider turns it back on. Not saved: a
+// restart always comes back on.
+let displayOff = false;
+function setDisplayOff(off) {
+  if (off === displayOff) return;
+  displayOff = off;
+  repaint();
+  updateStatus();
+}
+// While the display is off, a device button press only turns it back on.
+const wakeOr = fn => () => { if (displayOff) { setDisplayOff(false); return; } fn(); };
+
+function adjustBrightness(delta) {
+  const slider = document.getElementById('brightness');
+  if (delta < 0 && parseInt(slider.value, 10) <= BRIGHTNESS_MIN) { setDisplayOff(true); return; }
+  const cur = parseInt(slider.value, 10);   // the next level up, or the last one below
+  const next = delta > 0 ? (BRIGHTNESS_LEVELS.find(l => l > cur) || BRIGHTNESS_MAX) : (BRIGHTNESS_LEVELS.filter(l => l < cur).pop() || BRIGHTNESS_MIN);
+  slider.value = next;
+  const valLabel = document.getElementById('brightness-val');
+  if (valLabel) valLabel.textContent = next;
+  repaint();
+  updateStatus();
+}
+
+// ─────────────────────────────────────────────
+//  Device buttons
+// ─────────────────────────────────────────────
+// Each button has one press()/release() pair, driven by the mouse or touch
+// (pointer events, so two fingers can hold both on a touchscreen), by the
+// keyboard (↑ = top, ↓ = bottom, held independently), or by the "hold both"
+// control, which presses both at once — the only way to do the reboot
+// gesture with a single mouse.
+//
+// Mirrors the sketch's DebouncedButton + handleButtons():
+//   - tap (released before LONG_PRESS_THRESHOLD_MS): short action on release
+//   - hold past the threshold: long action fires once, while still held
+//   - both held: individual actions are suppressed; after REBOOT_HOLD_MS
+//     the device reboots. A both-held press that ends early does nothing —
+//     the threshold still marks each press as "long", so no short action
+//     fires on release (same as the firmware).
+const LONG_PRESS_THRESHOLD_MS = 600;
+const REBOOT_HOLD_MS = 3000;
+let comboTimer = null, comboStart = null, comboFired = false;
+
+function buttonsEnabled() {
+  // Inert during the splash, AP mode and the reboot message — the firmware
+  // doesn't poll the buttons in any of those.
+  return state.mode === 'normal' || state.mode === 'error';
+}
+
+function makeDeviceButton(elId, onShort, onLong) {
+  const el = document.getElementById(elId);
+  const b = { held: false, longTimer: null, longFired: false };
+
+  b.press = () => {
+    if (b.held || !buttonsEnabled()) return;
+    b.held = true;
+    b.longFired = false;
+    el.classList.add('pressed');
+    b.longTimer = setTimeout(() => {
+      b.longFired = true;
+      if (!bothHeld()) onLong();
+    }, LONG_PRESS_THRESHOLD_MS);
+    checkCombo();
+  };
+  // release(): a normal let-go. cancel(): let go with no action at all.
+  b.release = (silent = false) => {
+    if (!b.held) return;
+    b.held = false;
+    el.classList.remove('pressed');
+    clearTimeout(b.longTimer);
+    const rebootHappened = comboFired;
+    checkCombo();
+    if (!silent && !b.longFired && !rebootHappened && buttonsEnabled()) onShort();
+  };
+  b.cancel = () => b.release(true);
+
+  el.addEventListener('pointerdown', e => {
+    e.preventDefault();
+    el.setPointerCapture(e.pointerId);   // keeps the press alive if the pointer drifts off the button
+    b.press();
+  });
+  el.addEventListener('pointerup', () => b.release());
+  el.addEventListener('pointercancel', () => b.cancel());
+  el.addEventListener('contextmenu', e => e.preventDefault());   // long-press on touch shouldn't open a menu
+  // Space/Enter when the button itself has keyboard focus
+  el.addEventListener('keydown', e => {
+    if ((e.key === ' ' || e.key === 'Enter') && !e.repeat) { e.preventDefault(); b.press(); }
+  });
+  el.addEventListener('keyup', e => {
+    if (e.key === ' ' || e.key === 'Enter') { e.preventDefault(); b.release(); }
+  });
+  return b;
+}
+
+const topButton    = makeDeviceButton('phys-btn-brand',    wakeOr(() => adjustBrightness(+1)), wakeOr(cycleBrand));
+const bottomButton = makeDeviceButton('phys-btn-currency', wakeOr(() => adjustBrightness(-1)), wakeOr(cycleCurrency));
+function bothHeld() { return topButton.held && bottomButton.held; }
+function cancelAllButtons() { topButton.cancel(); bottomButton.cancel(); }
+
+function checkCombo() {
+  if (bothHeld()) {
+    if (!comboTimer) {
+      comboStart = performance.now();
+      comboTimer = setTimeout(() => {
+        comboFired = true;
+        comboTimer = null;
+        comboStart = null;
+        triggerReboot();
+      }, REBOOT_HOLD_MS);
+      requestAnimationFrame(updateRebootMeter);
+    }
+  } else {
+    if (comboTimer) { clearTimeout(comboTimer); comboTimer = null; comboStart = null; }
+    if (!topButton.held && !bottomButton.held) comboFired = false;   // both released — ready for the next gesture
+  }
+  updateRebootMeter();
+}
+
+function updateRebootMeter() {
+  const fill = document.getElementById('reboot-fill');
+  const status = document.getElementById('reboot-status');
+  if (!fill || !status) return;
+  if (comboStart !== null) {
+    const p = Math.min(1, (performance.now() - comboStart) / REBOOT_HOLD_MS);
+    fill.style.width = (p * 100) + '%';
+    status.textContent = 'Rebooting in ' + ((1 - p) * REBOOT_HOLD_MS / 1000).toFixed(1) + ' s…';
+    status.classList.add('live');
+    requestAnimationFrame(updateRebootMeter);
+  } else {
+    fill.style.width = comboFired ? '100%' : '0';
+    status.textContent = comboFired ? 'Rebooting' : 'Hold both for 3 s to reboot';
+    status.classList.toggle('live', comboFired);
+  }
+}
+
+// Mirrors the sketch's on-screen "REBOOTING" message (same text, same red,
+// same 300ms hold) before replaying the boot sequence — a real reboot
+// would restart into the same splash a fresh power-on shows.
+function triggerReboot() {
+  state.mode = 'rebooting';   // not 'splash', so the animation timer doesn't redraw over the message
+  fbClear();
+  drawText('REBOOTING', RAIN_WORD_X, RAIN_WORD_Y, 255, 60, 60, 1);
+  repaint();
+  updateStatus();
+  setTimeout(runBootSequence, 300);
+}
+
+// "Hold both" control — presses both device buttons for as long as it's held.
+(() => {
+  const el = document.getElementById('hold-both');
+  el.addEventListener('pointerdown', e => {
+    e.preventDefault();
+    el.setPointerCapture(e.pointerId);
+    el.classList.add('pressed');
+    topButton.press();
+    bottomButton.press();
+  });
+  const up = () => {
+    el.classList.remove('pressed');
+    // Silent: letting go early does nothing (the firmware would at most
+    // step brightness up and straight back down).
+    topButton.cancel();
+    bottomButton.cancel();
+  };
+  el.addEventListener('pointerup', up);
+  el.addEventListener('pointercancel', up);
+  el.addEventListener('contextmenu', e => e.preventDefault());
+})();
+
+// Keyboard: ↑ = top button, ↓ = bottom button, each held independently, so
+// holding both keys performs the reboot gesture.
+(() => {
+  const keyMap = { ArrowUp: () => topButton, ArrowDown: () => bottomButton };
+  const typing = t => t && (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA' || t.tagName === 'SELECT');
+  document.addEventListener('keydown', e => {
+    if (!keyMap[e.key] || typing(e.target)) return;
+    e.preventDefault();                 // no page scrolling
+    if (!e.repeat) keyMap[e.key]().press();
+  });
+  document.addEventListener('keyup', e => {
+    if (!keyMap[e.key] || typing(e.target)) return;
+    e.preventDefault();
+    keyMap[e.key]().release();
+  });
+  // Switching tabs or windows mid-press would otherwise leave a key "stuck".
+  window.addEventListener('blur', cancelAllButtons);
+})();
+
+// ─────────────────────────────────────────────
+//  State
+// ─────────────────────────────────────────────
+let blockAnim = null;
+let state = {
+  mode: 'normal',
+  price: 84210,
+  block: 968267,    // realistic current height; Randomise sometimes picks a 7-digit one
+  priceUp: true,    // daily price direction — drives the arrow and the price color
+  priceChangePct: 2.34, // 24h % change (signed); shown as ▲/▼ + magnitude next to the price. null = unknown (indicator hidden)
+};
+
+// Demo-only USD/JPY rate so the simulator has something plausible to show;
+// the real firmware fetches BTC/JPY directly rather than converting.
+const USD_JPY_RATE = 150;
+function priceJPY()      { return Math.round(state.price * USD_JPY_RATE); }
+function sats()          { return state.price > 0 ? Math.round(1e8 / state.price) : 0; }
+function satsPer100Yen() { const p = priceJPY(); return p > 0 ? Math.round(1e10 / p) : 0; }
+// Demo-only USD/EUR rate, likewise (the firmware fetches BTC/EUR directly).
+const USD_EUR_RATE = 0.92;
+function priceEUR()      { return Math.round(state.price * USD_EUR_RATE); }
+function satsPerEUR()    { const p = priceEUR(); return p > 0 ? Math.round(1e8 / p) : 0; }
+
+// ─────────────────────────────────────────────
+//  Scene renderers  (mirror the sketch logic)
+// ─────────────────────────────────────────────
+// Boot splash — "Matrix" digital rain that decodes into BLOCKGRID.
+// The sketch's drawSplashFrame() is a straight port of this (same
+// constants, same algorithm).
+//
+// Timeline, from the first splash frame (rainStartMs):
+//   0 – 1.5 s   dense rain of tiny 3x5 glyphs: 24 columns, near columns fast
+//               and bright, far ones slow and dim, glyphs flickering as they
+//               fall, a bright head on each column
+//   1.5 – 4.7 s BLOCKGRID decodes letter by letter: each position cycles
+//               through random characters for 0.55 s, then locks in green
+//               with a brief white flash (letters start 0.3 s apart); the
+//               rain behind the word is dimmed so it stays readable
+//   hold        the green word with rain around it (1.9 s)
+//   fade        no new rain; what's there fades out (1.4 s). At the same
+//               moment a glint sweeps across the word and GRID turns orange
+//               as it passes (0.9 s)
+//   end         BLOCK (green) GRID (orange) alone (1 s), then the ticker
+const MR_COLS = 24, MR_ROWS = 8, MR_CW = 4, MR_CH = 6;
+const SPLASH_DECODE_START_MS = 2000, SPLASH_LETTER_STAGGER_MS = 400, SPLASH_DECODE_MS = 750, SPLASH_FLASH_MS = 350;
+const SPLASH_DECODE_STEP_MS = 70;              // a decoding letter shows a new random character this often
+const RAIN_FORCE_RESOLVED_MS = 6000;          // + 200 = 6.2 s: the last letter has locked (at 5.95 s) by then
+const SPLASH_POST_RESOLVE_HOLD_MS = 2400, RAIN_FADEOUT_MS = 1100, RAIN_TEXT_ALONE_HOLD_MS = 2100;
+const SPLASH_SWEEP_MS = 1200;
+const RAIN_CHARS = '0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz';
+const RAIN_TARGET = 'BLOCKGRID';
+const RAIN_WORD_X = 21, RAIN_WORD_Y = 21;     // centred: 9 letters x 6 px
+
+// 3x5 micro glyphs for the rain — digits plus katakana-ish shapes. Bits:
+// 15 = top-left ... 1 = bottom-right, row by row (3 bits per row).
+const MICRO_GLYPHS = [
+  0b111101101101111, 0b010110010010111, 0b111001111100111, 0b111001011001111, 0b101101111001001,
+  0b111100111001111, 0b111100111101111, 0b111001010010010, 0b111101111101111, 0b111101111001111,
+  0b111010010010010, 0b101111101101101, 0b110101110101110, 0b011100100100011, 0b101010010010101,
+  0b111001011001111, 0b100100111101111, 0b010111010010011, 0b110010010010111, 0b011110010011110,
+  0b101101010101101, 0b111100110100100, 0b010101111101101, 0b111101111100100, 0b001011101001001,
+];
+
+// Rain look — tuned so it stays vivid on the real panel, where dim values
+// fade out much sooner than on a screen (especially at low brightness).
+let RAIN_TUNE = {
+  nearProb: 0.7,       // share of columns that are "near" (fast, bright)
+  nearSpeed: [6.3, 10.5], // rows per second
+  farSpeed: [2.8, 5.3],
+  farLevel: 0.55,      // brightness of "far" columns
+  fadeOutBase: 0.03,   // trail brightness left after 1 s once the rain is fading out
+  fadeBase: 0.43,      // trail brightness left after 1 s (higher = longer trails)
+  respawnGap: 3,       // up to this many rows of gap before a column restarts
+  headLevel: 0.85,     // a cell stays a white "head" while brightness is above this
+  trailGamma: 0.6,     // < 1 keeps trails brighter for longer
+  mutatePerSec: 1.6,   // how often a glyph flickers to another shape
+  wordDim: 0.3,        // rain brightness behind the word (box mode)
+  glyphs: 'kana',      // 'micro' = 3x5 glyphs, 'kana' = 5x7 mirrored katakana
+  cellW: 6, cellH: 8,  // rain grid cell size
+  halo: true,          // true: clear a 1px outline around the word's letters instead of dimming a box
+  wordFont: '5x7',     // '5x7' or 'tall' (condensed 5x9)
+  decodeGlyphs: 'kana',  // random characters while a letter decodes: 'latin' or 'kana'
+};
+// Film-style rain glyphs: half-width katakana, mirrored left-to-right like
+// the film's code, 5x7 in the same column format as FONT5x7 (bit 0 = top
+// row), plus the digits 0–9 from FONT5x7.
+const KANA_GLYPHS = [
+  [0x07,0x09,0x1D,0x21,0x41],
+  [0x01,0x02,0x7C,0x08,0x10],
+  [0x0E,0x12,0x23,0x42,0x06],
+  [0x42,0x42,0x7E,0x42,0x42],
+  [0x02,0x7F,0x4A,0x12,0x22],
+  [0x3E,0x42,0x02,0x1F,0x62],
+  [0x0A,0x0A,0x7E,0x0B,0x0A],
+  [0x0E,0x12,0x22,0x43,0x44],
+  [0x02,0x1E,0x22,0x43,0x04],
+  [0x7F,0x41,0x41,0x41,0x41],
+  [0x02,0x1F,0x22,0x47,0x02],
+  [0x0C,0x10,0x20,0x45,0x45],
+  [0x23,0x15,0x09,0x11,0x21],
+  [0x46,0x4A,0x42,0x3F,0x02],
+  [0x0E,0x12,0x2A,0x4B,0x44],
+  [0x0F,0x10,0x23,0x40,0x43],
+  [0x04,0x05,0x1D,0x25,0x44],
+  [0x02,0x02,0x1F,0x22,0x42],
+  [0x03,0x15,0x09,0x15,0x21],
+  [0x22,0x16,0x7B,0x12,0x22],
+  [0x38,0x06,0x00,0x0E,0x30],
+  [0x42,0x42,0x44,0x44,0x3F],
+  [0x1A,0x02,0x7F,0x02,0x1A],
+  [0x03,0x05,0x29,0x11,0x09],
+  [0x60,0x38,0x23,0x2C,0x30],
+  [0x01,0x22,0x14,0x18,0x24],
+  [0x45,0x45,0x7F,0x05,0x05],
+  [0x0E,0x02,0x7A,0x07,0x02],
+  [0x0C,0x15,0x25,0x45,0x44],
+  [0x00,0x1F,0x20,0x40,0x0F],
+  [0x0F,0x11,0x21,0x41,0x47],
+  [0x0E,0x10,0x20,0x42,0x41]
+].concat('0123456789'.split('').map(d => FONT5x7[d]));
+
+let rainCols = [], rainGlyph = [], rainBright = [], rainNear = [];
+let rainGridCols = MR_COLS, rainGridRows = MR_ROWS, rainCellW = MR_CW, rainCellH = MR_CH;
+function rainGlyphCount() { return RAIN_TUNE.glyphs === 'kana' ? KANA_GLYPHS.length : MICRO_GLYPHS.length; }
+let rainStartMs = 0, rainLastStepMs = 0, splashFadeStartMs = 0;
+
+function resetRainCol(c, initial) {
+  const T = RAIN_TUNE;
+  c.near = Math.random() < T.nearProb;
+  c.y = -Math.random() * (initial ? 8 : 4);
+  c.v = c.near ? T.nearSpeed[0] + Math.random() * (T.nearSpeed[1] - T.nearSpeed[0])
+               : T.farSpeed[0] + Math.random() * (T.farSpeed[1] - T.farSpeed[0]);
+  c.lastRow = -99;
+  return c;
+}
+
+function initRain() {
+  rainCellW = RAIN_TUNE.cellW; rainCellH = RAIN_TUNE.cellH;
+  rainGridCols = Math.ceil(W / rainCellW); rainGridRows = Math.ceil(H / rainCellH);
+  rainCols = Array.from({ length: rainGridCols }, () => resetRainCol({}, true));
+  rainGlyph = Array.from({ length: rainGridRows }, () => new Array(rainGridCols).fill(null));
+  rainBright = Array.from({ length: rainGridRows }, () => new Array(rainGridCols).fill(0));
+  rainNear = Array.from({ length: rainGridRows }, () => new Array(rainGridCols).fill(false));
+  rainStartMs = rainLastStepMs = performance.now();
+  splashFadeStartMs = 0;
+}
+
+function stepRain(allowSpawning) {
+  const now = performance.now();
+  const dt = Math.min(0.25, (now - rainLastStepMs) / 1000);   // after a long gap, resume rather than jump
+  rainLastStepMs = now;
+  // Trails fade out over about a second; once the rain stops spawning they
+  // fade much faster, so the rain is gone in ~0.9 s and the word stands alone.
+  const fade = Math.pow(allowSpawning ? RAIN_TUNE.fadeBase : RAIN_TUNE.fadeOutBase, dt);
+  for (let r = 0; r < rainGridRows; r++) for (let c = 0; c < rainGridCols; c++) rainBright[r][c] *= fade;
+  rainCols.forEach((col, c) => {
+    col.y += col.v * dt;
+    const r = Math.floor(col.y);
+    if (r !== col.lastRow) {
+      col.lastRow = r;
+      if (r >= 0 && r < rainGridRows && allowSpawning) {
+        rainGlyph[r][c] = Math.floor(Math.random() * rainGlyphCount());
+        rainBright[r][c] = 1;
+        rainNear[r][c] = col.near;
+      }
+    }
+    if (col.y > rainGridRows + Math.random() * RAIN_TUNE.respawnGap) resetRainCol(col, false);
+  });
+  // Glyphs flicker to a different shape while they fade (~1.2 times a second each).
+  const pMutate = RAIN_TUNE.mutatePerSec * dt;
+  for (let r = 0; r < rainGridRows; r++) for (let c = 0; c < rainGridCols; c++)
+    if (rainGlyph[r][c] !== null && Math.random() < pMutate) rainGlyph[r][c] = Math.floor(Math.random() * rainGlyphCount());
+}
+
+function drawMicroGlyph(idx, x, y, col) {
+  const bits = MICRO_GLYPHS[idx];
+  for (let r = 0; r < 5; r++) for (let c = 0; c < 3; c++)
+    if (bits & (1 << (14 - (r * 3 + c)))) fbSet(x + c, y + r, ...col);
+}
+
+// Tall, condensed 5x9 letters for the splash word (closer to the film's
+// narrow title lettering). Rows top->bottom, '#' = lit.
+const WORD_FONT_TALL = {
+  B: ["####.", "#...#", "#...#", "#...#", "####.", "#...#", "#...#", "#...#", "####."],
+  L: ["#....", "#....", "#....", "#....", "#....", "#....", "#....", "#....", "#####"],
+  O: [".###.", "#...#", "#...#", "#...#", "#...#", "#...#", "#...#", "#...#", ".###."],
+  C: [".####", "#....", "#....", "#....", "#....", "#....", "#....", "#....", ".####"],
+  K: ["#...#", "#...#", "#..#.", "#.#..", "##...", "#.#..", "#..#.", "#...#", "#...#"],
+  G: [".####", "#....", "#....", "#....", "#.###", "#...#", "#...#", "#...#", ".###."],
+  R: ["####.", "#...#", "#...#", "#...#", "####.", "#.#..", "#..#.", "#...#", "#...#"],
+  I: ["#####", "..#..", "..#..", "..#..", "..#..", "..#..", "..#..", "..#..", "#####"],
+  D: ["####.", "#...#", "#...#", "#...#", "#...#", "#...#", "#...#", "#...#", "####."],
+};
+// Pixels ([dx,dy]) of word letter i this frame; dy is relative to RAIN_WORD_Y.
+// Decoding letters show random characters (Latin or katakana); settled
+// letters use the 5x7 font or the tall font.
+function wordLetterPixels(i, t) {
+  const t0 = SPLASH_DECODE_START_MS + i * SPLASH_LETTER_STAGGER_MS, t1 = t0 + SPLASH_DECODE_MS;
+  if (t < t0) return null;
+  const tall = RAIN_TUNE.wordFont === 'tall', yo = tall ? -1 : 0, px = [];
+  if (t < t1) {
+    const h = Math.imul(Math.floor(t / SPLASH_DECODE_STEP_MS) * 31 + i, 2654435761) >>> 0;   // new random character every SPLASH_DECODE_STEP_MS
+    const g = RAIN_TUNE.decodeGlyphs === 'kana' ? KANA_GLYPHS[h % KANA_GLYPHS.length] : getGlyph(RAIN_CHARS[h % RAIN_CHARS.length]);
+    for (let cx = 0; cx < 5; cx++) for (let ry = 0; ry < 7; ry++) if ((g[cx] >> ry) & 1) px.push([cx, ry + (tall ? 0 : 0)]);
+    return { px, settled: false };
+  }
+  if (tall) {
+    const rows = WORD_FONT_TALL[RAIN_TARGET[i]];
+    rows.forEach((row, ry) => { for (let cx = 0; cx < 5; cx++) if (row[cx] === '#') px.push([cx, ry + yo]); });
+  } else {
+    const g = getGlyph(RAIN_TARGET[i]);
+    for (let cx = 0; cx < 5; cx++) for (let ry = 0; ry < 7; ry++) if ((g[cx] >> ry) & 1) px.push([cx, ry]);
+  }
+  return { px, settled: true, t1 };
+}
+
+function renderSplash(allowSpawning = true) {
+  if (rainCols.length === 0) initRain();
+  if (!allowSpawning && splashFadeStartMs === 0) splashFadeStartMs = performance.now();
+  stepRain(allowSpawning);
+  const t = performance.now() - rainStartMs;
+  fbClear();
+
+  const letters = [];
+  for (let i = 0; i < RAIN_TARGET.length; i++) letters.push(wordLetterPixels(i, t));
+  // Halo: a 1px outline around the letters where no rain is drawn.
+  let halo = null;
+  if (RAIN_TUNE.halo) {
+    halo = new Uint8Array(W * H);
+    letters.forEach((L, i) => {
+      if (!L) return;
+      for (const [dx0, dy0] of L.px)
+        for (let dy = -1; dy <= 1; dy++) for (let dx = -1; dx <= 1; dx++) {
+          const px = RAIN_WORD_X + i * 6 + dx0 + dx, py = RAIN_WORD_Y + dy0 + dy;
+          if (px >= 0 && px < W && py >= 0 && py < H) halo[py * W + px] = 1;
+        }
+    });
+  }
+  const put = (x, y, col) => { if (!halo || !halo[y * W + x]) fbSet(x, y, ...col); };
+
+  // Rain. In box mode, the rain behind the word is dimmed once it starts decoding.
+  const dimWord = !RAIN_TUNE.halo && t >= SPLASH_DECODE_START_MS;
+  for (let r = 0; r < rainGridRows; r++) {
+    for (let c = 0; c < rainGridCols; c++) {
+      const b = rainBright[r][c];
+      if (b < 0.04 || rainGlyph[r][c] === null) continue;
+      const x = c * rainCellW, y = r * rainCellH;
+      let k = rainNear[r][c] ? 1 : RAIN_TUNE.farLevel;
+      if (dimWord && x >= RAIN_WORD_X - 5 && x <= RAIN_WORD_X + 54 && y >= RAIN_WORD_Y - 7 && y <= RAIN_WORD_Y + 8) k *= RAIN_TUNE.wordDim;
+      const bt = Math.pow(b, RAIN_TUNE.trailGamma);
+      const col = (b > RAIN_TUNE.headLevel ? [215 * k, 255 * k, 215 * k] : [0, 255 * bt * k, 70 * bt * k]).map(v => Math.floor(v));   // bright head / fading green trail
+      if (RAIN_TUNE.glyphs === 'kana') {
+        const g = KANA_GLYPHS[rainGlyph[r][c]];
+        for (let cx = 0; cx < 5; cx++) for (let ry = 0; ry < 7; ry++)
+          if ((g[cx] >> ry) & 1 && x + cx < W && y + ry < H) put(x + cx, y + ry, col);
+      } else {
+        const bits = MICRO_GLYPHS[rainGlyph[r][c]];
+        for (let rr = 0; rr < 5; rr++) for (let cc = 0; cc < 3; cc++)
+          if (bits & (1 << (14 - (rr * 3 + cc)))) put(x + cc, y + rr, col);
+      }
+    }
+  }
+
+  // The sweep (glint + GRID turning orange) starts when the rain starts fading.
+  let sweepP = -1, bandX = -99;
+  if (splashFadeStartMs) {
+    sweepP = Math.min(1, (performance.now() - splashFadeStartMs) / SPLASH_SWEEP_MS);
+    bandX = RAIN_WORD_X - 6 + (RAIN_TARGET.length * 6 + 12) * fxEase(sweepP);
+  }
+
+  // The word: each letter decodes (random characters), then locks with a flash.
+  for (let i = 0; i < RAIN_TARGET.length; i++) {
+    const L = letters[i];
+    if (!L) continue;
+    const x = RAIN_WORD_X + i * 6;
+    let col;
+    if (!L.settled) col = [120, 255, 140];
+    else {
+      // Settled colour: green, except GRID turns orange as the sweep passes it.
+      let lc = [200, 255, 200];
+      if (i >= 5) {
+        const k = Math.max(0, Math.min(1, (bandX - (x + 2.5 - 3)) / 6));
+        lc = [200 + 55 * k, 255 - 96 * k, 200 - 172 * k];
+      }
+      const f = Math.min(1, (t - L.t1) / SPLASH_FLASH_MS);
+      col = lc.map(v => Math.round(255 + (v - 255) * f));
+    }
+    for (const [dx, dy] of L.px) {
+      const px = x + dx, py = RAIN_WORD_Y + dy;
+      if (px >= 0 && px < W && py >= 0 && py < H) fbSet(px, py, ...col);
+    }
+  }
+  // Glint: brighten the letters' own pixels under a soft band — same maths
+  // as the price sweep.
+  if (sweepP >= 0 && sweepP < 1) {
+    for (let i = 0; i < RAIN_TARGET.length; i++) {
+      const L = letters[i];
+      if (!L) continue;
+      for (const [dx, dy] of L.px) {
+        const px = RAIN_WORD_X + i * 6 + dx, py = RAIN_WORD_Y + dy;
+        const k = Math.max(0, 1 - Math.abs(px - bandX) / 3.5) * 0.75;
+        if (k <= 0 || py < 0 || py >= H) continue;
+        const j = (py * W + px) * 3;
+        fb[j] += (255 - fb[j]) * k; fb[j + 1] += (255 - fb[j + 1]) * k; fb[j + 2] += (255 - fb[j + 2]) * k;
+      }
+    }
+  }
+}
+
+
+// 24h change indicator: ▲/▼ arrow followed by the magnitude, e.g. "▲2.3%".
+// The arrow carries the sign, so the number never needs "+" or "-". Both
+// parts use the price's own up/down color.
+// ─────────────────────────────────────────────
+//  Price-change effect (subtle; only the characters that changed)
+// ─────────────────────────────────────────────
+// When a fetch brings a new price, the characters of the price, the 24h %
+// and the Sat/$1 (Sat/¥100) figure that differ from before animate;
+// unchanged ones stay put.
+//   'roll'  — odometer: changed characters roll in from below when that
+//             number went up, from above when it went down, clipped to the
+//             7-row character cell
+//   'fade'  — flash (default): changed characters flash and ease back to
+//             their normal colour — pale green (price uptick) / pale red
+//             (downtick) on the price row, bright white on the Sat row
+//             (whose number moves opposite to the price)
+//   'sweep' — a soft light band glides once across the price row and the
+//             Sat row
+//   'off'   — no effect
+// Mirrors the sketch's PriceFx; chosen on the web control page.
+const PRICE_FX = ['roll', 'fade', 'sweep', 'off'];
+const PRICE_FX_NAMES = ['Roll', 'Flash', 'Sweep', 'Off'];
+const PRICE_ANIM_MS = { roll: 450, fade: 1000, sweep: 700, off: 0 };
+let priceAnimStyle = 'fade';
+let priceAnim = null;   // { usd, jpy, pct, satUsd, satJpy: [old,new], dir, pctDir, satDirUsd, satDirJpy, start }
+const SAT_COLOR = [255, 228, 190];   // warm white — the Sat/$1 (Sat/¥100) row
+const SAT_FLASH = [255, 255, 255];   // bright white — the Sat row's flash colour
+
+function priceStrings() {
+  return { usd: '$' + state.price.toString(), jpy: '¥' + Math.round(priceJPY() / 10000), eur: '€' + priceEUR(),
+           pct: state.priceChangePct === null ? '' : changeIndicatorText(),
+           satUsd: 'Sat/$1:' + sats(), satJpy: 'Sat/¥100:' + satsPer100Yen(), satEur: 'Sat/€1:' + satsPerEUR(),
+           satUsdN: sats(), satJpyN: satsPer100Yen(), satEurN: satsPerEUR() };
+}
+
+function setPriceFx(i) {
+  priceAnimStyle = PRICE_FX[i];
+  const sel = document.getElementById('price-anim-style');
+  if (sel) sel.value = priceAnimStyle;
+}
+
+// Simulates a fetch returning a slightly different price (and with it a
+// slightly different 24h change).
+function priceTick(delta) {
+  if (delta === undefined) {
+    delta = Math.round((Math.random() * 90 + 5) * (Math.random() < 0.5 ? -1 : 1));
+  }
+  const before = priceStrings(), beforePct = state.priceChangePct;
+  const old = state.price;
+  state.price = Math.max(1, state.price + delta);
+  if (state.priceChangePct !== null) {
+    // Same 24h window, new price: the % moves by the same relative amount.
+    state.priceChangePct = Math.round(((1 + state.priceChangePct / 100) * state.price / old - 1) * 10000) / 100;
+    state.priceUp = state.priceChangePct >= 0;
+  }
+  const after = priceStrings();
+  priceAnim = PRICE_ANIM_MS[priceAnimStyle] ? {
+    usd: [before.usd, after.usd], jpy: [before.jpy, after.jpy], eur: [before.eur, after.eur], pct: [before.pct, after.pct],
+    satUsd: [before.satUsd, after.satUsd], satJpy: [before.satJpy, after.satJpy], satEur: [before.satEur, after.satEur],
+    satDirUsd: after.satUsdN >= before.satUsdN ? 1 : -1, satDirJpy: after.satJpyN >= before.satJpyN ? 1 : -1,
+    satDirEur: after.satEurN >= before.satEurN ? 1 : -1,
+    dir: delta >= 0 ? 1 : -1,
+    pctDir: (beforePct === null || Math.abs(state.priceChangePct) >= Math.abs(beforePct)) ? 1 : -1,
+    start: performance.now() } : null;
+  redraw();
+}
+
+// 0..1 progress of the running effect, or null when none is running.
+function priceFxProgress() {
+  if (!priceAnim) return null;
+  const p = (performance.now() - priceAnim.start) / PRICE_ANIM_MS[priceAnimStyle];
+  if (p >= 1) { priceAnim = null; return null; }   // finished — also stops the redraw timer
+  return p;
+}
+const fxEase = t => t * t * (3 - 2 * t);
+
+// One glyph, only the rows from clipY0 (inclusive) to clipY1 (exclusive).
+function drawGlyphClipped(ch, x, y, r, g, b, clipY0, clipY1) {
+  if (ch === ' ' || ch === undefined) return;
+  const glyph = getGlyph(ch);
+  for (let col = 0; col < 5; col++)
+    for (let row = 0; row < 7; row++)
+      if ((glyph[col] >> row) & 1) {
+        const py = y + row;
+        if (py >= clipY0 && py < clipY1) fbSet(x + col, py, r, g, b);
+      }
+}
+
+// Draws `str` like drawText(), animating the characters that differ from
+// `oldStr` (compared right-aligned, since numbers grow to the left) with the
+// roll or flash effect. rollDir: +1 = roll up (number increased).
+// Returns the end x, like drawText().
+function drawFxText(str, oldStr, x, y, color, rollDir, p, flashColor) {
+  if (p === null || oldStr === undefined || oldStr === str || priceAnimStyle === 'sweep') {
+    return drawText(str, x, y, ...color);
+  }
+  const shift = str.length - oldStr.length;
+  let cx = x;
+  for (let i = 0; i < str.length; i++) {
+    const ch = str[i], j = i - shift, was = (j >= 0 && j < oldStr.length) ? oldStr[j] : ' ';
+    if (ch === was) { cx = drawText(ch, cx, y, ...color); continue; }
+    if (priceAnimStyle === 'fade') {
+      const hi = flashColor || (priceAnim.dir > 0 ? [210, 255, 215] : [255, 205, 205]);
+      const t = fxEase(p);
+      cx = drawText(ch, cx, y, ...hi.map((h, k) => Math.round(h + (color[k] - h) * t)));
+    } else {   // roll
+      const off = Math.round(8 * (1 - fxEase(p)));    // 8 = 7 rows + 1 gap
+      const dy = rollDir > 0 ? off : -off;             // up: new comes in from below
+      drawGlyphClipped(ch,  cx, y + dy, ...color, y, y + 7);
+      drawGlyphClipped(was, cx, y + dy - (rollDir > 0 ? 8 : -8), ...color, y, y + 7);
+      cx += ch === ' ' ? 4 : 6;
+    }
+  }
+  return cx;
+}
+
+// Price text with the effect (if one is running for this currency).
+function drawPriceText(str, x, y, color, key) {
+  const p = priceFxProgress();
+  const a = priceAnim && priceAnim[key];
+  return drawFxText(str, a && a[1] === str ? a[0] : undefined, x, y, color, priceAnim ? priceAnim.dir : 1, p);
+}
+
+// Sat/$1 (Sat/¥100) text with the effect. Returns the end x.
+function drawSatText(str, x, y, key) {
+  const p = priceFxProgress();
+  const a = priceAnim && priceAnim[key];
+  const dir = priceAnim ? priceAnim['satDir' + key.slice(3)] : 1;   // satUsd → satDirUsd, satEur → satDirEur, …
+  const endX = drawFxText(str, a && a[1] === str ? a[0] : undefined, x, y, SAT_COLOR, dir, p, SAT_FLASH);
+  applyPriceSweep(x, endX, y);
+  return endX;
+}
+
+// 'sweep': brighten already-drawn pixels of the row x0..x1 under a soft band.
+function applyPriceSweep(x0, x1, y) {
+  const p = priceFxProgress();
+  if (p === null || priceAnimStyle !== 'sweep') return;
+  const bx = x0 - 4 + (x1 - x0 + 8) * fxEase(p);
+  for (let px = x0; px < x1; px++) {
+    const k = Math.max(0, 1 - Math.abs(px - bx) / 3.5) * 0.75;
+    if (k <= 0) continue;
+    for (let py = y; py < y + 7; py++) {
+      const i = (py * W + px) * 3;
+      if (fb[i] | fb[i + 1] | fb[i + 2]) {
+        fb[i] += (255 - fb[i]) * k; fb[i + 1] += (255 - fb[i + 1]) * k; fb[i + 2] += (255 - fb[i + 2]) * k;
+      }
+    }
+  }
+}
+
+const CHANGE_GAP = 6;      // gap between the indicator and the price
+function changeIndicatorText() {
+  return Math.abs(state.priceChangePct).toFixed(1) + '%';
+}
+function changeIndicatorWidth(text) {
+  return ARROW_W + ARROW_GAP + measureTextWidth(text.replace('.', '')) + 3;
+}
+// Returns the indicator's left x (for the sweep), or priceX if hidden.
+function drawChangeIndicator(priceX, y) {
+  if (state.priceChangePct === null) return priceX;   // unknown 24h change: hide rather than show a made-up 0.0%
+  const text = changeIndicatorText();
+  const x = priceX - CHANGE_GAP - changeIndicatorWidth(text);   // sits just left of the price
+  const col = state.priceUp ? [0, 255, 70] : [255, 60, 60];
+  drawPriceArrow(x, y, state.priceUp);
+  // Decimal point drawn as a narrow 2px dot instead of the font's '.',
+  // which sits in a full 6px cell and makes "2.3%" read as "2. 3%".
+  // Whole part and "tenth%" part animate separately (each right-aligned),
+  // so the dot never moves.
+  const p = priceFxProgress();
+  const a = priceAnim && priceAnim.pct[1] === text && priceAnim.pct[0] ? priceAnim.pct[0].split('.') : [undefined, undefined];
+  const [whole, rest] = text.split('.');
+  const dir = priceAnim ? priceAnim.pctDir : 1;
+  let cx = drawFxText(whole, a[0], x + ARROW_W + ARROW_GAP, y, col, dir, p);
+  for (const [dx, dy] of [[0,5],[1,5],[0,6],[1,6]]) fbSet(cx + dx, y + dy, ...col);
+  drawFxText(rest, a[1], cx + 3, y, col, dir, p);
+  return x;
+}
+
+function renderNormal(err=false) {
+  fbClear();
+
+  // Layout — every row's position lives here rather than as literals below.
+  // Whole screen sits 2px higher than it originally did so the bottom (Sat)
+  // row has a margin instead of sitting on the panel's last LED row, where
+  // the enclosure bezel is most likely to clip it.
+  const TITLE_Y = 4;
+  const ROW1_Y  = 21;   // block chain + block height
+  const PRICE_Y = 30;
+  const SAT_Y   = 39;
+
+
+  const brand    = brandProfiles[currentBrandIndex];
+  const currency = currencyOptions[currentCurrencyIndex];
+
+  // Header — image-based titles (katakana etc.) draw as a bitmap; ASCII
+  // titles print as text at size 2 (10×14), x=24, y=6.
+  if (brand.titleImage) {
+    if (brand.titleImageRegions) {
+      // Enlarged, logo-free rendering: each character trimmed to its own
+      // content width and packed tightly, then scaled up as a whole —
+      // fits noticeably larger than scaling the fixed-width cells would.
+      // Centered across the full panel width (no logo on this profile).
+      // Nudged down from pure vertical centering, right up against the
+      // Block row's safe clearance (1px gap) — there's only ~2px of room
+      // to shift down before it starts overlapping Block at y=23, given
+      // how much of the 22px header space this now fills.
+      const scale = brand.titleImageScale, gap = brand.titleImageGap;
+      let totalW = 0;
+      for (const { w } of brand.titleImageRegions) totalW += Math.round(w * scale) + Math.round(gap * scale);
+      totalW -= Math.round(gap * scale); // no trailing gap after the last char
+      const dh = Math.round(brand.titleImageH * scale);
+      const dx = Math.floor((96 - totalW) / 2);
+      const dy = 23 - dh - 2; // lit katakana ends 2px above the Block row (1px higher than before, which looked crowded)
+      const drawKana = () => drawKatakanaScaled(brand.titleImage, brand.titleImageW, brand.titleImageH, brand.titleImageRegions, dx, dy, scale, gap, [255, 255, 255]);
+      if (brand.titleBevel) drawBeveled(drawKana, brand.titleBevel); else drawKana();
+    } else {
+      // Native size, positioned in the title field alongside the logo —
+      // y=6 matches "ITCOIN"'s text position exactly.
+      // titleImageX defaults to 24 but can shift right if a future brand
+      // needs to clear a logo that encroaches further into the frame.
+      const tix = brand.titleImageX ?? 24;
+      drawBitmap565(brand.titleImage, tix, TITLE_Y, brand.titleImageW, brand.titleImageH);
+    }
+  } else if (brand.titleLines) {
+    // Multi-line small (size 1) title, each line at its own position
+    for (const l of brand.titleLines) drawText(l.text, l.x, l.y, brand.color[0], brand.color[1], brand.color[2], 1);
+  } else {
+    if (brand.titleBevel) drawTextBeveled(brand.title, brand.titleX ?? 24, TITLE_Y, 2, brand.titleBevel);
+    else drawText(brand.title, brand.titleX ?? 24, TITLE_Y, brand.color[0], brand.color[1], brand.color[2], 2);
+  }
+
+  // Logo (or placeholder mark) — defaults to x=1,y=0,21×28 (the standard
+  // corner icon slot). Drawn here, before Block/Price/Sats, so those rows
+  // would layer on top of it if a future profile's logo were deliberately
+  // larger than its slot and bled into that space (via logoX/logoY/
+  // logoW/logoH below); for the standard-sized icon this ordering has no
+  // visible effect since it doesn't overlap anything.
+  // No placeholder box for profiles that intentionally have no logo (they
+  // have a titleImage instead, so it's a deliberate design, not a stub) —
+  // the placeholder is only for genuinely unfinished slots.
+  const lx = brand.logoX ?? 1, ly = brand.logoY ?? 0;
+  const lw = brand.logoW ?? 21, lh = brand.logoH ?? 28;
+  if (brand.logo) drawBitmap565(brand.logo, lx, ly, lw, lh);
+  else if (!brand.titleImage) drawPlaceholderBox(lx, ly, lw, lh);
+
+  // Block height y=23. During an incoming-block event the blockchain row is
+  // animated as one chain viewport, while the Sat/$1 field below remains fixed.
+  // Sequence:
+  //   1. Existing chain + left stub shift left together; the oldest block exits
+  //      through the chain viewport edge.
+  //   2. The new block appears at the current number position with NO chains
+  //      attached and travels left toward the remaining right-hand block.
+  //   3. Only when the new block is close enough does the 3-pixel connector
+  //      grow in and complete the link.
+  //   4. The new number slides into its final position.
+  const BLOCK_FIRST_DIGIT_X = 54;
+  const BLOCK_FIELD_X = 21; // three-pixel continuation lives at x=21..23
+  const BLOCK_Y = ROW1_Y;
+  const BLOCK_ORANGE = [255, 165, 30];       // the current/newest block — full brightness
+  const BLOCK_PAST = [90, 90, 90];           // older blocks — desaturated to gray, fading into color as they approach the present
+  // Unknown 24h change keeps the price green (its original color), same as the sketch's priceDirectionColor().
+  const PRICE_COLOR = (state.priceChangePct === null || state.priceUp) ? [0, 255, 70] : [255, 60, 60];
+  const incomingActive = blockAnim && !err;
+  const now = performance.now();
+  const p = incomingActive
+    ? Math.max(0, Math.min(1, (now - blockAnim.start) / blockAnim.duration))
+    : 0;
+
+  // This is deliberately independent of the moving/new block number. The
+  // Sat/$1 line must not slide during the animation.
+  // In error mode the block row shows "ERR", so the shared right edge
+  // follows that — otherwise the price/Sat rows would line up with a block
+  // number that isn't on screen. (Matches the sketch, where a failed block
+  // fetch prints "ERR" and the rows align to getCursorX() after it.)
+  const staticSatRightX = err
+    ? (BLOCK_FIRST_DIGIT_X + measureTextWidth('ERR'))
+    : blockAnim
+    ? (BLOCK_FIRST_DIGIT_X + measureTextWidth(blockAnim.oldValue.toString()))
+    : (BLOCK_FIRST_DIGIT_X + measureTextWidth(state.block.toString()));
+  const staticSatBlockEndX = staticSatRightX;
+
+  // The three pixels at the left edge imply blocks that continue off-screen.
+  // They are part of the chain viewport and therefore move during the old-chain
+  // phase, then return to their normal resting position at the end. Always
+  // BLOCK_PAST — this represents blocks even older than the oldest visible
+  // one, so it's never the "current" color in any context.
+  function drawChainStub(x, y, write) {
+    for (let dx = 0; dx < 3; dx++) write(x + dx, y + 3, ...BLOCK_PAST);
+  }
+
+  // Clip ONLY the blockchain row to its viewport. This lets the old first block
+  // physically travel left with the chain and disappear cleanly, without ever
+  // painting over the Bitcoin logo above/behind it.
+  const clipChain = (x, y, r, g, b) => {
+    if (x >= BLOCK_FIELD_X && x < W && y >= BLOCK_Y && y < H) fbSet(x, y, r, g, b);
+  };
+
+  if (incomingActive) {
+    const ease = t => t * t * (3 - 2 * t);
+
+    // Four phases:
+    //   1. The existing 3-block chain shifts left together, including its
+    //      left continuation, until the oldest block leaves the viewport.
+    //   2. The incoming block travels left by itself, with no links attached.
+    //   3. A 3-pixel connector appears only when the incoming block is close
+    //      enough to the previous block to link.
+    //   4. The new number moves into the old number position. Sat/$1 stays
+    //      fixed for the whole event.
+    const chainShiftP = Math.min(1, p / 0.34);
+    const chainShift = Math.round(10 * ease(chainShiftP));
+
+    // Resting geometry: stub x=21..23, blocks x=24 / 34 / 44, links of 3px.
+    const oldFirstX = 24 - chainShift;
+    const oldSecondX = 34 - chainShift;
+    const oldThirdX = 44 - chainShift;
+
+    drawChainStub(oldFirstX - 3, BLOCK_Y, clipChain);
+    drawBlockImage(oldFirstX, BLOCK_Y, ...BLOCK_PAST, clipChain);
+    drawBlockImage(oldSecondX, BLOCK_Y, ...BLOCK_PAST, clipChain);
+    drawBlockImage(oldThirdX, BLOCK_Y, 170, 140, 90, clipChain);  // settles into the middle position once linked, so uses the midpoint tone
+
+    // Existing 3-pixel links move with the chain.
+    for (let i = 0; i < 3; i++) {
+      clipChain(oldFirstX + 7 + i, BLOCK_Y + 3, ...BLOCK_PAST);
+      clipChain(oldSecondX + 7 + i, BLOCK_Y + 3, ...BLOCK_PAST);
+    }
+
+    // The incoming block begins off-screen beyond the right border and
+    // flies in to the newly opened rightmost block position — rather than
+    // starting at the number's own position, which read more like the
+    // number "budding off" a block right where it stood than a block
+    // genuinely arriving from outside. End position (BLOCK_FIRST_DIGIT_X
+    // - 10 = 44) is unchanged — still the same resting spot the link/number
+    // phases below already target. It has no chain on either side while
+    // travelling.
+    const INCOMING_START_X = W + 8; // a few pixels past the edge, so it's already in visible motion right as it crosses into frame rather than popping in exactly at the border
+    const INCOMING_END_X = BLOCK_FIRST_DIGIT_X - 10;
+    const travelP = Math.max(0, Math.min(1, (p - 0.10) / 0.60));
+    const incomingX = Math.round(
+      INCOMING_START_X - (INCOMING_START_X - INCOMING_END_X) * ease(travelP)
+    );
+
+    // Solid orange for the entire flight — the same color it settles into,
+    // no fade/transition. (Previously faded in from white/near-white-green,
+    // matching the boot splash's "not yet settled" look, but that read as
+    // a distracting color shift rather than a clean arrival.)
+    const blockColor = BLOCK_ORANGE;
+    const linkP = Math.max(0, Math.min(1, (travelP - 0.82) / 0.18));
+    drawBlockImage(incomingX, BLOCK_Y, ...blockColor, clipChain);
+
+    // Reveal exactly three pixels of connector as the incoming block closes
+    // the final gap with the old third block — same solid orange as the
+    // block itself.
+    const linkLen = Math.round(3 * ease(linkP));
+    for (let i = 0; i < linkLen; i++) {
+      clipChain(oldThirdX + 7 + i, BLOCK_Y + 3, ...blockColor);
+    }
+
+    // Then slide the new block number into the fixed number field. The chain
+    // itself stays put while the number moves. Runs to p=1.0, so the number
+    // emerges over the last 31% of the animation: a deliberate reveal rather
+    // than a quick snap, with no idle time at the end.
+    const numberP = Math.max(0, Math.min(1, (p - 0.69) / 0.31));
+    if (numberP > 0) {
+      const numberX = Math.round(
+        BLOCK_FIRST_DIGIT_X - 6 * (1 - ease(numberP))
+      );
+      drawText(blockAnim.newValue.toString(), numberX, BLOCK_Y, ...BLOCK_ORANGE);
+      // Deliberately NOT using drawText's returned cursor position here —
+      // that would capture wherever it actually landed after drawing at
+      // the still-sliding numberX, so blockEndX (and the Sat/$1 row that
+      // right-aligns against it below) would continuously drift in step
+      // with the slide instead of staying still. Using the number's fixed
+      // final width means Sat/$1 jumps at most once — only if the digit
+      // count actually changed — rather than visibly creeping during the
+      // whole slide-in.
+      blockEndX = BLOCK_FIRST_DIGIT_X + measureTextWidth(blockAnim.newValue.toString());
+    } else {
+      blockEndX = staticSatBlockEndX;
+    }
+
+    if (p >= 1) {
+      state.block = blockAnim.newValue;
+      blockAnim = null;
+      blockEndX = BLOCK_FIRST_DIGIT_X + measureTextWidth(state.block.toString());
+    }
+  } else {
+    // Resting chain is always fully visible: a 3-pixel left continuation,
+    // three 7x7 blocks, and 3-pixel links between them. The newest (third)
+    // block stays the bright current-block orange; the older two are
+    // darkened to imply they're history now.
+    drawChainStub(BLOCK_FIELD_X, BLOCK_Y, fbSet);
+    drawBlockchainIcon(BLOCK_FIELD_X + 3, BLOCK_Y, ...BLOCK_PAST, [170, 140, 90], BLOCK_ORANGE);
+    blockEndX = drawText((err ? 'ERR' : state.block.toString()), BLOCK_FIRST_DIGIT_X, BLOCK_Y, ...BLOCK_ORANGE);
+  }
+
+  if (currency === 'JPY') {
+    // BTC/JPY, man-scaled (万, units of 10,000) — e.g. ¥13,772,554 becomes
+    // "1377", matching how large yen amounts are natively read in Japan.
+    // Block height, price and Sat rows all share one RIGHT edge (the end of
+    // the block number), so digits line up by place value down the screen.
+    // Uses staticSatBlockEndX — the OLD block value's width during the
+    // new-block animation — so neither the price nor the Sat row moves
+    // while the animation plays.
+    const manValue = Math.round(priceJPY() / 10000);
+    const priceText = '¥' + manValue;
+    const priceW = err ? measureTextWidth('¥ERR') : measureTextWidth(priceText) + MAN_GLYPH_SIZE;
+    const priceX = staticSatBlockEndX - priceW;   // right edge shared with block number and Sat row
+    const rowX = err ? priceX : drawChangeIndicator(priceX, PRICE_Y);
+    if (err) {
+      drawText('¥ERR', priceX, PRICE_Y, 0, 255, 70);
+    } else {
+      const endX = drawPriceText(priceText, priceX, PRICE_Y, PRICE_COLOR, 'jpy');
+      applyPriceSweep(rowX, endX, PRICE_Y);
+
+      // 万 icon, right after the last digit — positioned off drawText's
+      // returned cursor position (not a fixed x) so it stays glued to the
+      // end of the number regardless of how many digits it has.
+      if (manGlyph) drawBitmap565(manGlyph, endX, PRICE_Y, MAN_GLYPH_SIZE, MAN_GLYPH_SIZE, PRICE_COLOR);
+      else drawPlaceholderBox(endX, PRICE_Y, MAN_GLYPH_SIZE, MAN_GLYPH_SIZE);
+    }
+    // Sats per ¥100 — "Sat/¥100:" reads as sats-per-100-yen, matching
+    // the corrected quantity/reference-amount order used on the USD line's
+    // "Sat/$1:" (the old "¥100/Sat:" order, read as a literal fraction,
+    // would mean "yen per sat" — not what's displayed). Right-aligned to
+    // the shared right edge.
+    const satStr = 'Sat/¥100:' + (err ? 'ERR' : satsPer100Yen().toString());
+    const satW = measureTextWidth(satStr);
+    if (err) drawText(satStr, staticSatBlockEndX - satW, SAT_Y, ...SAT_COLOR);  // warm white
+    else drawSatText(satStr, staticSatBlockEndX - satW, SAT_Y, 'satJpy');
+  } else {
+    // BTC/USD or BTC/EUR — right-aligned to the shared right edge (see JPY
+    // branch). EUR uses the same layout with its own figures and €.
+    const eur = currency === 'EUR', sym = eur ? '€' : '$';
+    const priceStr = sym + (err ? 'ERR' : (eur ? priceEUR() : state.price).toString());
+    const priceX = staticSatBlockEndX - measureTextWidth(priceStr);   // right edge shared with block number and Sat row
+    if (err) drawText(priceStr, priceX, PRICE_Y, ...PRICE_COLOR);
+    else {
+      const rowX = drawChangeIndicator(priceX, PRICE_Y);
+      const endX = drawPriceText(priceStr, priceX, PRICE_Y, PRICE_COLOR, eur ? 'eur' : 'usd');
+      applyPriceSweep(rowX, endX, PRICE_Y);
+    }
+
+    // Sats/dollar (euro) — right-aligned to the shared right edge.
+    const satStr = 'Sat/' + sym + '1:' + (err ? 'ERR' : (eur ? satsPerEUR() : sats()).toString());
+    const satW = measureTextWidth(satStr);
+    if (err) drawText(satStr, staticSatBlockEndX - satW, SAT_Y, ...SAT_COLOR);  // warm white
+    else drawSatText(satStr, staticSatBlockEndX - satW, SAT_Y, eur ? 'satEur' : 'satUsd');
+  }
+}
+
+function renderAP() {
+  fbClear();
+  // Matches startAccessPoint()'s actual on-screen layout exactly — this
+  // previously showed different content entirely (no password line at
+  // all), left over from an early draft that was never kept in sync as
+  // the real sketch's screen evolved. Colors match the boot splash's own
+  // palette: bright near-white-green for values worth reading correctly
+  // (the password, the IP), dimmer trail green for static labels.
+  drawText('WiFi Setup',    2, 1,  200, 255, 200);
+  drawText('SSID: BlockGrid', 2, 10, 0, 255, 70);
+  drawText('192.168.4.1',   2, 19, 200, 255, 200);
+  drawText('AP pass:',      2, 28, 0, 255, 70);
+  drawText('A1B2C3D4',      2, 37, 200, 255, 200); // representative example — the real password is per-device
+}
+
+// ─────────────────────────────────────────────
+//  Canvas renderer  (pixel → LED dot)
+// ─────────────────────────────────────────────
+const canvas = document.getElementById('panel');
+const ctx    = canvas.getContext('2d');
+
+// Scale the canvas up for display
+const SCALE = 7;
+canvas.width  = W * SCALE;
+canvas.height = H * SCALE;
+
+function repaint() {
+  const brt = displayOff ? 0 : document.getElementById('brightness').value / 255;
+
+  ctx.fillStyle = '#050505';
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+  for (let y = 0; y < H; y++) {
+    for (let x = 0; x < W; x++) {
+      const i = (y * W + x) * 3;
+      let r = fb[i]   * brt;
+      let g = fb[i+1] * brt;
+      let b = fb[i+2] * brt;
+
+      const cx = x * SCALE + SCALE / 2;
+      const cy = y * SCALE + SCALE / 2;
+      const radius = SCALE * 0.38;
+
+      if (r > 1 || g > 1 || b > 1) {
+        // Lit LED: dot + glow
+        const ri = Math.round(r), gi = Math.round(g), bi = Math.round(b);
+
+        // outer glow
+        const grd = ctx.createRadialGradient(cx, cy, 0, cx, cy, SCALE * 1.1);
+        grd.addColorStop(0,   `rgba(${ri},${gi},${bi},0.45)`);
+        grd.addColorStop(0.5, `rgba(${ri},${gi},${bi},0.12)`);
+        grd.addColorStop(1,   `rgba(${ri},${gi},${bi},0)`);
+        ctx.fillStyle = grd;
+        ctx.beginPath();
+        ctx.arc(cx, cy, SCALE * 1.1, 0, Math.PI * 2);
+        ctx.fill();
+
+        // dot core
+        const grd2 = ctx.createRadialGradient(cx - radius*.2, cy - radius*.2, 0, cx, cy, radius);
+        grd2.addColorStop(0,   `rgba(255,255,255,0.7)`);
+        grd2.addColorStop(0.4, `rgba(${ri},${gi},${bi},1)`);
+        grd2.addColorStop(1,   `rgba(${Math.round(r*.5)},${Math.round(g*.5)},${Math.round(b*.5)},1)`);
+        ctx.fillStyle = grd2;
+        ctx.beginPath();
+        ctx.arc(cx, cy, radius, 0, Math.PI * 2);
+        ctx.fill();
+      } else {
+        // Off LED: dark dot
+        ctx.fillStyle = '#111';
+        ctx.beginPath();
+        ctx.arc(cx, cy, radius * 0.75, 0, Math.PI * 2);
+        ctx.fill();
+      }
+    }
+  }
+}
+
+// ─────────────────────────────────────────────
+//  Public controls
+// ─────────────────────────────────────────────
+// Controls whether stepRain() spawns new characters — true during normal
+// splash viewing, set false during the boot sequence's fade-out phase
+// (see runBootSequence below). A manual Splash-button click always resets
+// this to true, so clicking it for a plain preview/test always gets the
+// full indefinite animation, not whatever fade state a previous boot
+// sequence happened to leave behind.
+let splashAllowSpawning = true;
+
+function setMode(m) {
+  if (m === 'ap') { displayOff = false; simScanNow(); }   // setup details must be seen; the list is scanned before the setup network starts
+  state.mode = m;
+  syncControlPage();
+  if (m === 'splash') { initRain(); splashAllowSpawning = true; } // always start the rain fresh when this mode is (re)selected
+  // Mapped explicitly (mode name -> button element id) rather than assuming
+  // they match, since they don't always (mode 'error' uses id 'btn-err').
+  const modeButtonIds = { normal: 'btn-normal', ap: 'btn-ap', error: 'btn-err', splash: 'btn-splash' };
+  Object.keys(modeButtonIds).forEach(mode => {
+    const b = document.getElementById(modeButtonIds[mode]);
+    if (b) b.classList.toggle('active', mode === m);
+  });
+  // Buttons are inert in AP mode and during the splash, as on the device
+  // (the boot sequence doesn't poll them). Anything held is let go silently.
+  const disabled = !buttonsEnabled();
+  ['phys-btn-brand', 'phys-btn-currency', 'hold-both'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.classList.toggle('disabled', disabled);
+  });
+  if (disabled) cancelAllButtons();
+  redraw();
+}
+
+function startNewBlockAnimation() {
+  if (blockAnim || state.mode !== 'normal') return;
+  const oldValue = state.block;
+  blockAnim = {
+    oldValue,
+    newValue: oldValue + 1,
+    start: performance.now(),
+    duration: 1700,
+  };
+  redraw();
+}
+
+function randomise() {
+  state.price = Math.round(50000 + Math.random() * 80000);
+  // 1 in 3 goes past 1,000,000 (7 digits) to check the wider layout
+  state.block = Math.random() < 1/3
+    ? Math.round(1000000 + Math.random() * 50000)
+    : Math.round(900000 + Math.random() * 99999);
+  state.priceChangePct = Math.round((Math.random() * 12 - 6) * 100) / 100;
+  state.priceUp = state.priceChangePct >= 0;
+  redraw();
+}
+
+function togglePriceDirection() {
+  if (state.priceChangePct === null) state.priceChangePct = state.priceUp ? 2.34 : -2.34;   // leaving "missing" restores a value
+  state.priceUp = !state.priceUp;
+  state.priceChangePct = (state.priceUp ? 1 : -1) * Math.abs(state.priceChangePct);
+  redraw();
+}
+
+function redraw() {
+  switch (state.mode) {
+    case 'ap':     renderAP(); break;
+    case 'error':  renderNormal(true); break;
+    case 'splash': renderSplash(splashAllowSpawning); break;
+    default:       renderNormal(false);
+  }
+  repaint();
+  updateStatus();
+}
+
+// Status strip under the panel — reflects exactly what the panel shows.
+const MODE_LABELS = { normal: 'Normal', error: 'API error', ap: 'AP setup', splash: 'Splash', rebooting: 'Rebooting' };
+function setStat(id, text, cls) {
+  const el = document.getElementById(id);
+  if (!el) return;
+  el.textContent = text;
+  el.className = 'v' + (cls ? ' ' + cls : '');
+}
+function updateStatus() {
+  const jpy = currencyOptions[currentCurrencyIndex] === 'JPY';
+  const err = state.mode === 'error';
+  setStat('s-mode', MODE_LABELS[state.mode] || state.mode);
+  setStat('brand-readout', brandProfiles[currentBrandIndex].name);
+  setStat('currency-readout', currencyOptions[currentCurrencyIndex]);
+  setStat('s-brightness', displayOff ? 'Off' : document.getElementById('brightness').value);
+  if (err) {
+    ['s-price', 's-change', 's-sats', 's-block'].forEach(id => setStat(id, 'ERR', 'muted'));
+    return;
+  }
+  const eur = currencyOptions[currentCurrencyIndex] === 'EUR';
+  setStat('s-price', jpy ? '¥' + priceJPY().toLocaleString() : eur ? '€' + priceEUR().toLocaleString() : '$' + state.price.toLocaleString());
+  if (state.priceChangePct === null) setStat('s-change', 'missing (hidden)', 'muted');
+  else setStat('s-change', (state.priceUp ? '▲ ' : '▼ ') + Math.abs(state.priceChangePct).toFixed(2) + '%',
+               state.priceUp ? 'up' : 'down');
+  setStat('s-sats', jpy ? satsPer100Yen().toLocaleString() + ' / ¥100' : eur ? satsPerEUR().toLocaleString() + ' / €1' : sats().toLocaleString() + ' / $1');
+  setStat('s-block', state.block.toLocaleString());
+}
+
+function setChangeMissing() {
+  state.priceChangePct = null;
+  state.priceUp = true;
+  redraw();
+}
+
+// Runs the sketch's actual boot sequence on page load: splash appears
+// immediately, plays through to a fully resolved "BLOCKGRID", holds while
+// rain keeps flowing, fades the rain out, holds on the bare word alone,
+// then switches to the normal ticker display — same phases, same
+// durations as setup() in the .ino, so this simulator's first few
+// seconds match what the real hardware actually does on boot.
+//
+// One deliberate difference: the sketch's phase 1 is the blocking WiFi/
+// data fetch, included there because it genuinely freezes the display for
+// however long the network takes. Nothing here blocks JS execution, so
+// there's no equivalent freeze to simulate — this just lets the rain
+// start resolving immediately, which is the more useful and honest
+// preview anyway (nobody wants to stare at a fake frozen frame for a
+// couple of seconds on every page load).
+let bootToken = 0;
+function runBootSequence(loopSplash = false) {
+  displayOff = false;   // a restart always comes back on
+  const token = ++bootToken;
+  if (!loopSplash) simBootAt = Date.now();   // uptime restarts, as after a real reboot
+  const RESOLVE_GUARANTEE_MS = RAIN_FORCE_RESOLVED_MS + 200; // same phase timing as the sketch's setup()
+
+  setMode('splash'); // starts the rain fresh, splashAllowSpawning = true
+
+  setTimeout(() => {
+    if (token === bootToken && state.mode === 'splash') splashAllowSpawning = false; // begin fade-out + GRID sweep — guarded so a manual mode change during the sequence isn't overridden
+  }, RESOLVE_GUARANTEE_MS + SPLASH_POST_RESOLVE_HOLD_MS);
+
+  setTimeout(() => {
+    if (token !== bootToken || state.mode !== 'splash') return;
+    if (loopSplash) runBootSequence(true);   // "Splash (loop)": play it again
+    else setMode('normal');                  // boot sequence complete — same guard as above
+  }, RESOLVE_GUARANTEE_MS + SPLASH_POST_RESOLVE_HOLD_MS + RAIN_FADEOUT_MS + RAIN_TEXT_ALONE_HOLD_MS);
+}
+
+// Screen buttons: picking a screen also stops any boot sequence in progress.
+function selectScreen(m) { bootToken++; if (m === 'splash') runBootSequence(true); else setMode(m); }
+function replayBoot() { cancelAllButtons(); runBootSequence(); }
+
+// On phones the panel is pinned to the top of the screen; tell the browser
+// its height so scrolling to a control (keyboard focus etc.) never leaves
+// the control hidden underneath it.
+(() => {
+  const device = document.querySelector('.device');
+  const stacked = window.matchMedia('(max-width: 980px) and (not ((orientation: landscape) and (max-height: 560px)))');
+  const update = () => document.documentElement.style.setProperty('--pinned-h',
+    stacked.matches ? (device.offsetHeight + 8) + 'px' : '0px');
+  if (window.ResizeObserver) new ResizeObserver(update).observe(device);
+  stacked.addEventListener ? stacked.addEventListener('change', update) : stacked.addListener(update);
+  update();
+})();
+
+// ─────────────────────────────────────────────
+//  Web control page — mock of the device's HTTP API
+// ─────────────────────────────────────────────
+// CONTROL_PAGE_HTML is the exact page the sketch will serve. It runs in the
+// iframe with fetch() routed here, where simApi() answers the same three
+// endpoints the firmware will provide:
+//   GET  /api/status   → JSON snapshot of what the device is doing
+//   POST /api/set      → brightness=, brand=, currency=, effect=, priceSource=,
+//                        blockSource=, interval= (form-encoded), returns status
+//   POST /api/reboot   → reboots (after replying)
+// Like the device, nothing answers while it's rebooting or in AP setup mode
+// (it isn't on your network then), and settings can't be changed during the
+// boot splash (the firmware doesn't act on buttons then either).
+const CONTROL_PAGE_HTML = "<!DOCTYPE html>\n<html lang=\"en\">\n<head>\n<meta charset=\"UTF-8\">\n<meta name=\"viewport\" content=\"width=device-width, initial-scale=1\">\n<meta name=\"theme-color\" content=\"#0b0b0c\">\n<title>BlockGrid<\/title>\n<style>\n  /* Orange BlockGrid theme — same fonts and colours as the simulator:\n     Orbitron for the BLOCKGRID wordmark and section labels, Share Tech Mono\n     for everything else. The fonts load from Google Fonts when the phone has\n     internet; without it the page falls back to the built-in monospace font\n     and still works. Price up/down stays green/red, since it means something. */\n  @import url('https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Orbitron:wght@500;700&display=swap');\n  :root {\n    --bg: #0b0b0c; --card: #131315; --accent: #ff9f1c; --accent-bright: #ffc15e; --accent-dim: #5c3a0c;\n    --text: #d6d6d6; --text-dim: #8a8a8f; --border: #232327; --danger: #ff4a4a; --field: #1a1a1d;\n    --up: #00ff46; --down: #ff4a4a;\n    --mono: 'Share Tech Mono', ui-monospace, 'SFMono-Regular', Menlo, Consolas, monospace;\n    --head: 'Orbitron', var(--mono);\n  }\n  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }\n  button { font-family: inherit; }\n  body {\n    margin: 0; min-height: 100vh; background: var(--bg); color: var(--text);\n    font-family: var(--mono);\n    padding: 24px 16px 32px;\n  }\n  main { max-width: 380px; margin: 0 auto; }\n  header { text-align: center; margin-bottom: 20px; }\n  .logo { font-family: var(--head); font-size: 20px; font-weight: 700; letter-spacing: .22em; text-transform: uppercase; margin-bottom: 8px; padding-left: .22em; }\n  .logo span { color: var(--accent); }\n  .subtitle { color: var(--text-dim); font-size: 13px; display: flex; justify-content: center; align-items: center; gap: 6px; flex-wrap: wrap; }\n  .pill { display: inline-flex; align-items: center; gap: 6px; }\n  .pill i { width: 8px; height: 8px; border-radius: 50%; background: var(--text-dim); }\n  .pill.live i { background: var(--up); box-shadow: 0 0 6px var(--up); }\n  .pill.warn i { background: #ffb020; }\n  .pill.off i { background: var(--danger); }\n  .devname:not(:empty)::before { content: '·'; margin-right: 6px; }\n  .card {\n    background: var(--card); border: 1px solid var(--border); border-radius: 16px;\n    padding: 20px 20px 22px; margin-bottom: 14px; box-shadow: 0 8px 32px rgba(0,0,0,.5);\n  }\n  h2 { font-family: var(--head); font-size: 10px; font-weight: 500; letter-spacing: .24em; text-transform: uppercase; color: var(--text-dim); margin: 0 0 12px; }\n  h2 + * { margin-top: 0; }\n  .now { text-align: center; }\n  .now .block { font-size: 13px; color: var(--text-dim); }\n  .now .block b { color: var(--accent); font-size: 18px; font-weight: 700; margin-left: 6px; font-variant-numeric: tabular-nums; }\n  .now .price { font-size: 34px; font-weight: 700; margin: 8px 0 4px; font-variant-numeric: tabular-nums; }\n  .now .price.up { color: var(--up); } .now .price.down { color: var(--down); }\n  .now .row { display: flex; justify-content: center; gap: 14px; font-size: 14px; flex-wrap: wrap; }\n  .chg.up { color: var(--up); } .chg.down { color: var(--down); }\n  .sats { color: #ffe4be; }\n  .muted { color: var(--text-dim); font-size: 12px; margin-top: 12px; }\n  .slider { display: flex; align-items: center; gap: 10px; }\n  .step {\n    width: 48px; height: 48px; flex: none; border-radius: 10px; border: 1px solid var(--border);\n    background: var(--field); color: var(--text); font-size: 22px; line-height: 1; cursor: pointer;\n  }\n  input[type=range] { -webkit-appearance: none; appearance: none; flex: 1; min-width: 0; height: 6px; border-radius: 3px; background: var(--border); outline: none; }\n  input[type=range]::-webkit-slider-thumb { -webkit-appearance: none; width: 26px; height: 26px; border-radius: 50%; background: var(--accent); border: 0; }\n  input[type=range]::-moz-range-thumb { width: 26px; height: 26px; border-radius: 50%; background: var(--accent); border: 0; }\n  h2 .val { float: right; font-family: var(--mono); font-size: 14px; letter-spacing: 0; color: var(--accent); }\n  .seg { display: grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); gap: 8px; }\n  .seg button {\n    min-height: 48px; border-radius: 10px; border: 1px solid var(--border); background: var(--field);\n    color: var(--text); font-size: 15px; cursor: pointer; padding: 6px 10px; font-family: inherit;\n  }\n  .seg button.on { background: var(--accent); border-color: var(--accent); color: #111; font-weight: 700; }\n  .stats { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 18px; }\n  .stats div { font-size: 13px; color: var(--text-dim); }\n  .stats b { display: block; color: var(--text); font-size: 15px; font-weight: 600; margin-top: 3px; font-variant-numeric: tabular-nums; }\n  .reboot {\n    width: 100%; height: 50px; border-radius: 10px; border: 1px solid var(--danger); background: none;\n    color: var(--danger); font-size: 16px; font-weight: 700; cursor: pointer; font-family: inherit;\n  }\n  .reboot.confirm { background: var(--danger); color: #111; }\n  button:disabled, input:disabled, select:disabled { opacity: .4; cursor: default; }\n  .banner { display: none; text-align: center; color: var(--text-dim); font-size: 12px; margin: -6px 0 14px; line-height: 1.5; }\n  .banner.show { display: block; }\n  .sub { font-size: 12px; color: var(--text-dim); margin: 16px 0 8px; }\n  .sub:first-of-type { margin-top: 0; }\n  #intervals { grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 6px; }\n  #intervals button { padding: 6px 2px; font-size: 14px; }\n  #blockSrcs button, #priceSrcs button { font-size: 14px; }\n  .note { font-size: 11.5px; color: var(--text-dim); margin-top: 10px; line-height: 1.5; }\n  .power {\n    width: 100%; height: 48px; margin-top: 14px; border-radius: 10px; border: 1px solid var(--border);\n    background: var(--field); color: var(--text); font-size: 15px; cursor: pointer; font-family: inherit;\n  }\n  .power.off { background: var(--accent); border-color: var(--accent); color: #111; font-weight: 700; }\n  .power[hidden] { display: none; }\n  .slider.dim { opacity: .45; }\n  .now .fig { min-width: 0; }\n  .now .lbl { display: none; }\n\n  /* Wi-Fi card: the network in use, and a form for moving to another one. */\n  .wifi-now { font-size: 13px; color: var(--text-dim); }\n  .wifi-now b { display: block; color: var(--text); font-size: 15px; font-weight: 600; margin-top: 3px; overflow-wrap: anywhere; }\n  #wifiForm { margin-top: 18px; }\n  #wifiForm[hidden], #wifiOpen[hidden], .wmsg[hidden], #nodeBox[hidden] { display: none; }\n  .netrow { display: flex; gap: 8px; }\n  select, .txt {\n    width: 100%; min-width: 0; height: 48px; background: var(--field); border: 1px solid var(--border);\n    border-radius: 10px; color: var(--text); font-size: 16px; padding: 0 12px; font-family: inherit;\n  }\n  select { flex: 1; }\n  select:focus, .txt:focus { outline: none; border-color: var(--accent-dim); }\n  .field { position: relative; }\n  .field .txt { padding-right: 64px; }\n  .toggle-pw { position: absolute; right: 4px; top: 4px; height: 40px; padding: 0 12px; background: none; border: none; color: var(--text-dim); font-size: 13px; cursor: pointer; font-family: inherit; }\n  .power.scan { width: auto; flex: none; margin: 0; padding: 0 14px; font-size: 14px; }\n  .btn2 { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 18px; }\n  .btn2 .power { margin: 0; }\n  .join { height: 48px; border-radius: 10px; border: 1px solid var(--accent); background: var(--accent); color: #111; font-size: 15px; font-weight: 700; cursor: pointer; font-family: inherit; }\n  .wmsg { font-size: 12.5px; margin-top: 12px; line-height: 1.5; color: var(--text-dim); }\n  .wmsg.bad { color: var(--danger); } .wmsg.good { color: var(--up); }\n\n  /* Mouse and keyboard: hover highlight and a visible focus ring. */\n  button:focus-visible, input:focus-visible, select:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }\n  @media (hover: hover) and (pointer: fine) {\n    .seg button:not(.on):not(:disabled):hover, .step:not(:disabled):hover, .power:not(.off):not(:disabled):hover { border-color: var(--accent-dim); background: #222226; }\n    .power.off:not(:disabled):hover { background: var(--accent-bright); border-color: var(--accent-bright); }\n    .seg button.on:not(:disabled):hover { background: var(--accent-bright); border-color: var(--accent-bright); }\n    .reboot:not(:disabled):not(.confirm):hover { background: rgba(255,74,74,.08); }\n    .join:not(:disabled):hover { background: var(--accent-bright); border-color: var(--accent-bright); }\n    select:not(:disabled), .toggle-pw { cursor: pointer; }\n    input[type=range]:not(:disabled) { cursor: pointer; }\n  }\n\n  /* Wider screens: header on one line and a wide \"now\" strip. From 1000 px\n     the settings split into two columns — display settings on the left,\n     data sources and device on the right. Phones keep the layout above. */\n  @media (min-width: 700px) {\n    body { padding: 36px 32px 48px; }\n    main { max-width: 640px; }\n    header { display: flex; align-items: center; justify-content: space-between; text-align: left; margin-bottom: 22px; }\n    .logo { font-size: 24px; margin: 0; padding-left: 0; }\n    .subtitle { font-size: 14px; }\n    .banner { text-align: left; margin: -8px 0 16px; font-size: 13px; }\n    .card { padding: 24px 26px 26px; margin-bottom: 18px; }\n    .now { display: grid; grid-template-columns: 1.5fr 1fr; align-items: end; gap: 12px 32px; text-align: left; padding: 26px 30px; }\n    .now .lbl { display: block; font-family: var(--head); font-size: 10px; letter-spacing: .24em; text-transform: uppercase; color: var(--text-dim); margin-bottom: 10px; }\n    .now .prc { order: -1; }\n    .now .price { font-size: 52px; margin: 0; line-height: 1; }\n    .now .row { justify-content: flex-start; gap: 20px; font-size: 16px; margin-top: 12px; }\n    .now .block { font-size: 0; }\n    .now .block b { display: block; font-size: 36px; margin: 0; line-height: 1; }\n    .now .blk, .now .blk .lbl { text-align: right; }\n    .now .muted { grid-column: 1 / -1; margin-top: 4px; padding-top: 14px; border-top: 1px solid var(--border); font-size: 13px; }\n    .seg { grid-template-columns: repeat(auto-fit, minmax(96px, 1fr)); }\n    .seg button { min-height: 42px; }\n    #blockSrcs button, #priceSrcs button { padding: 6px 2px; font-size: 13px; }\n    .step { width: 42px; height: 42px; }\n    .power { height: 42px; }\n    select, .txt, .join { height: 42px; }\n    .toggle-pw { top: 1px; }\n    .reboot { height: 44px; }\n  }\n  @media (min-width: 1000px) {\n    main { max-width: 1040px; }\n    .now .price { font-size: 56px; }\n    .now .block b { font-size: 40px; }\n    .cols { display: grid; grid-template-columns: 1fr 1fr; gap: 0 18px; align-items: start; }\n  }\n<\/style>\n<\/head>\n<body>\n<main>\n  <header>\n    <div class=\"logo\">Block<span>Grid<\/span><\/div>\n    <div class=\"subtitle\"><span class=\"pill\" id=\"pill\"><i><\/i><span id=\"pillText\">Connecting…<\/span><\/span><span class=\"devname\" id=\"devName\"><\/span><\/div>\n  <\/header>\n  <div class=\"banner\" id=\"banner\"><\/div>\n\n  <section class=\"card now\">\n    <div class=\"fig blk\"><div class=\"lbl\">Block height<\/div><div class=\"block\">Block<b id=\"block\">–<\/b><\/div><\/div>\n    <div class=\"fig prc\"><div class=\"lbl\">Bitcoin price<\/div><div class=\"price\" id=\"price\">–<\/div>\n      <div class=\"row\"><span class=\"chg\" id=\"chg\"><\/span><span class=\"sats\" id=\"sats\"><\/span><\/div><\/div>\n    <div class=\"muted\" id=\"updated\"><\/div>\n  <\/section>\n\n  <div class=\"cols\">\n  <div class=\"col\">\n\n  <section class=\"card\">\n    <h2>Brightness <span class=\"val\" id=\"briVal\">–<\/span><\/h2>\n    <div class=\"slider\">\n      <button class=\"step\" id=\"dn\" aria-label=\"Dimmer\">−<\/button>\n      <input type=\"range\" id=\"bri\" min=\"0\" max=\"200\" aria-label=\"Brightness\">\n      <button class=\"step\" id=\"upb\" aria-label=\"Brighter\">+<\/button>\n    <\/div>\n    <button class=\"power\" id=\"power\" hidden>Turn display off<\/button>\n  <\/section>\n\n  <section class=\"card\">\n    <h2>Theme<\/h2>\n    <div class=\"seg\" id=\"brands\"><\/div>\n  <\/section>\n\n  <section class=\"card\">\n    <h2>Currency<\/h2>\n    <div class=\"seg\" id=\"currencies\"><\/div>\n  <\/section>\n\n  <section class=\"card\">\n    <h2>Price change effect<\/h2>\n    <div class=\"seg\" id=\"effects\"><\/div>\n  <\/section>\n\n  <\/div>\n  <div class=\"col\">\n  <section class=\"card\">\n    <h2>Data sources<\/h2>\n    <div class=\"sub\">Price<\/div>\n    <div class=\"seg\" id=\"priceSrcs\"><\/div>\n    <div class=\"sub\">Block height<\/div>\n    <div class=\"seg\" id=\"blockSrcs\"><\/div>\n    <div id=\"nodeBox\" hidden>\n      <div class=\"sub\">Your node’s mempool address <span style=\"opacity:.7\">(as you’d open it in a browser)<\/span><\/div>\n      <div class=\"netrow\"><input class=\"txt\" type=\"url\" id=\"nodeUrl\" maxlength=\"120\" placeholder=\"https:&#47;&#47;192.168.1.50:50194\" autocomplete=\"off\" autocapitalize=\"off\" spellcheck=\"false\" aria-label=\"Node address\"><button class=\"power scan\" id=\"nodeSave\">Save<\/button><\/div>\n      <div class=\"wmsg\" id=\"nodeMsg\"><\/div>\n    <\/div>\n    <div class=\"sub\">Check price every <span style=\"opacity:.7\">(blocks: every minute)<\/span><\/div>\n    <div class=\"seg\" id=\"intervals\"><\/div>\n    <div class=\"note\" id=\"srcNote\"><\/div>\n  <\/section>\n\n  <section class=\"card\">\n    <h2>Wi-Fi<\/h2>\n    <div class=\"wifi-now\">Connected to<b id=\"ssidNow\">–<\/b><\/div>\n    <div class=\"wmsg\" id=\"wifiMsg\" hidden><\/div>\n    <button class=\"power\" id=\"wifiOpen\">Change network<\/button>\n    <div id=\"wifiForm\" hidden>\n      <div class=\"sub\">Nearby networks<\/div>\n      <div class=\"netrow\"><select id=\"nets\" aria-label=\"Nearby networks\"><option value=\"\">Scanning…<\/option><\/select><button class=\"power scan\" id=\"rescan\">Scan again<\/button><\/div>\n      <div class=\"sub\">Network name <span style=\"opacity:.7\">(type it for a hidden network)<\/span><\/div>\n      <input class=\"txt\" type=\"text\" id=\"wssid\" maxlength=\"32\" placeholder=\"Network name\" autocomplete=\"off\" autocapitalize=\"off\" spellcheck=\"false\" aria-label=\"Network name\">\n      <div class=\"sub\">Password<\/div>\n      <div class=\"field\"><input class=\"txt\" type=\"password\" id=\"wpass\" maxlength=\"64\" placeholder=\"Network password\" autocomplete=\"off\" aria-label=\"Password\"><button class=\"toggle-pw\" id=\"wshow\" type=\"button\">Show<\/button><\/div>\n      <div class=\"btn2\"><button class=\"power\" id=\"wifiCancel\">Cancel<\/button><button class=\"join\" id=\"wifiJoin\">Join<\/button><\/div>\n      <div class=\"note\">BlockGrid tries the new network before saving it, and is off this page for up to 30 s meanwhile. If it can’t connect, it comes back to this network.<\/div>\n    <\/div>\n  <\/section>\n\n  <section class=\"card\">\n    <h2>Device<\/h2>\n    <div class=\"stats\">\n      <div>Wi-Fi signal<b id=\"rssi\">–<\/b><\/div>\n      <div>Uptime<b id=\"uptime\">–<\/b><\/div>\n      <div>Free memory<b id=\"heap\">–<\/b><\/div>\n      <div>Largest block<b id=\"largest\">–<\/b><\/div>\n    <\/div>\n    <button class=\"reboot\" id=\"reboot\">Reboot<\/button>\n  <\/section>\n  <\/div>\n  <\/div>\n<\/main>\n\n<script>\nconst $ = id => document.getElementById(id);\nlet rebootAt = 0;\nlet S = null, busy = false, dragging = false, rebooting = false, confirmTimer = null, briTimer = null;\n// Brightness 1–255 on a curve: the slider (0–200) and −/+ take small steps\n// at the dim end, where the eye notices each one most, and bigger ones at\n// the bright end. LEVELS is the device's BRIGHTNESS_LEVELS (its buttons).\nconst LEVELS = [1, 2, 3, 4, 5, 6, 8, 10, 13, 17, 22, 28, 36, 46, 60, 77, 100, 128, 165, 210, 255];\nconst posToBri = p => Math.round(1 + 254 * Math.pow(p / 200, 2.2));\nconst briToPos = b => Math.round(200 * Math.pow(Math.max(0, b - 1) / 254, 1 / 2.2));\n\nconst fmt = n => Math.round(n).toLocaleString('en-US');\nfunction ago(s) { return s < 5 ? 'just now' : s < 90 ? s + ' s ago' : Math.round(s / 60) + ' min ago'; }\nfunction dur(s) { const d = Math.floor(s / 86400), h = Math.floor(s % 86400 / 3600), m = Math.floor(s % 3600 / 60);\n  return d ? d + 'd ' + h + 'h' : h ? h + 'h ' + m + 'm' : m + 'm'; }\nfunction signal(r) { return r + ' dBm · ' + (r > -60 ? 'good' : r > -72 ? 'fair' : 'weak'); }\n\n// What each price source setting does (same order as the device's list).\nconst SRC_NOTES = [\n  'Auto: CoinGecko first. If it fails, prices come from mempool.space and the 24h change from Coinbase (the euro and yen % are estimated from the dollar %).',\n  'CoinGecko only: no backup. If CoinGecko refuses, the last price stays up until it answers again.',\n  'Backup only: prices from mempool.space, 24h change from Coinbase — CoinGecko is never asked.'\n];\n\nfunction pill(cls, text) { $('pill').className = 'pill ' + cls; $('pillText').textContent = text; }\nfunction banner(text) { $('banner').textContent = text || ''; $('banner').classList.toggle('show', !!text); }\n\nfunction render(s) {\n  S = s;\n  // Which BlockGrid this is, when there's more than one on the network.\n  if (s.name && $('devName').textContent !== s.name + '.local') {\n    $('devName').textContent = s.name + '.local';\n    document.title = 'BlockGrid · ' + s.name;\n  }\n  const ready = s.mode === 'normal' || s.mode === 'error';\n  if (s.mode === 'starting') { pill('warn', 'Starting up'); banner('BlockGrid is starting up — controls will be ready in a moment.'); }\n  else if (s.mode === 'error') { pill('off', 'No data'); banner('BlockGrid can’t reach the price service right now.'); }\n  else if (s.stale)          { pill('warn', 'Data stale'); banner('Price data couldn’t be refreshed — showing the last values received.'); }\n  else                       { pill('live', 'Live'); banner(''); }\n\n  // Block height and price come from different services and can fail\n  // independently; each shows a dash when the device has nothing current.\n  const jpy = s.currency === 'JPY', blockOk = s.block > 0, priceOk = s.price > 0;\n  const sym = jpy ? '¥' : s.currency === 'EUR' ? '€' : '$';\n  $('block').textContent = blockOk ? fmt(s.block) : '–';\n  $('price').textContent = priceOk ? sym + fmt(s.price) : '–';\n  const up = s.change === null || s.change >= 0;\n  $('price').className = 'price ' + (priceOk ? (up ? 'up' : 'down') : '');\n  $('chg').className = 'chg ' + (up ? 'up' : 'down');\n  $('chg').textContent = priceOk && s.change !== null ? (up ? '▲ ' : '▼ ') + Math.abs(s.change).toFixed(2) + '% 24h' : '';\n  $('sats').textContent = priceOk ? fmt(s.sats) + (jpy ? ' sat / ¥100' : ' sat / ' + sym + '1') : '';\n  $('updated').textContent = blockOk || priceOk ? 'Updated ' + ago(s.updatedAgo) + (s.priceFrom ? ' · ' + s.priceFrom : '') : '';\n\n  // Display off: the panel is dark (brightness 0) but everything else keeps\n  // running. Moving the slider or pressing −/+ turns it back on.\n  const off = s.display === false;\n  if (!dragging) { $('bri').value = briToPos(s.brightness); $('briVal').textContent = off ? 'Off' : s.brightness; }\n  $('power').hidden = s.display === undefined;   // firmware without the switch\n  $('power').textContent = off ? 'Turn display on' : 'Turn display off';\n  $('power').classList.toggle('off', off);\n  document.querySelector('.slider').classList.toggle('dim', off);\n  segs('brands', s.brands, s.brand, i => send('brand=' + i));\n  segs('currencies', s.currencies, s.currencies.indexOf(s.currency), i => send('currency=' + i));\n  if (s.effects) segs('effects', s.effects, s.effect, i => send('effect=' + i));\n  if (s.priceSrcs) {\n    segs('priceSrcs', s.priceSrcs, s.priceSrc, i => send('priceSource=' + i));\n    segs('blockSrcs', s.blockSrcs, s.blockSrc, i => send('blockSource=' + i));\n    segs('intervals', s.intervals, s.interval, i => send('interval=' + i));\n    $('srcNote').textContent = SRC_NOTES[s.priceSrc] || '';\n    nodeRender(s);\n  }\n\n  $('rssi').textContent = signal(s.rssi);\n  $('uptime').textContent = dur(s.uptime);\n  $('heap').textContent = Math.round(s.heap / 1024) + ' KB';\n  $('largest').textContent = Math.round(s.largest / 1024) + ' KB';\n\n  if (s.ssid !== undefined) $('ssidNow').textContent = s.ssid || '–';\n  // Back from trying another network: it either failed (and BlockGrid\n  // returned here) or worked and this page reached it on the new one.\n  if (joining && Date.now() - joining.at > 3000) {\n    if (s.wifiFail && s.wifiFail === joining.ssid) { wifiMsg('Couldn’t join “' + joining.ssid + '”. Check the name and password — BlockGrid is still on “' + s.ssid + '”.', 'bad'); joining = null; }\n    else if (s.ssid === joining.ssid) { wifiMsg('Now on “' + s.ssid + '”.', 'good'); joining = null; }\n  }\n\n  document.querySelectorAll('button, input, select').forEach(el => { el.disabled = !ready; });\n}\n\n// Rebuild the button row only when the list changes; otherwise just move the highlight.\nfunction segs(id, names, sel, onPick) {\n  const box = $(id);\n  if (box.dataset.names !== names.join('|')) {\n    box.dataset.names = names.join('|'); box.innerHTML = '';\n    names.forEach((n, i) => { const b = document.createElement('button'); b.textContent = n; b.onclick = () => onPick(i); box.appendChild(b); });\n  }\n  [...box.children].forEach((b, i) => b.classList.toggle('on', i === sel));\n}\n\nasync function poll() {\n  try {\n    const r = await fetch('/api/status', { cache: 'no-store' });\n    if (!r.ok) throw 0;\n    const s = await r.json();\n    if (rebooting && Date.now() - rebootAt < 3000) return;   // still answering from before the restart\n    if (rebooting && s.mode !== 'starting') rebooting = false;\n    render(s);\n  } catch (e) {\n    if (joining) {\n      pill('warn', 'Switching Wi-Fi'); banner(joinText());\n      document.querySelectorAll('button, input, select').forEach(el => el.disabled = true);\n      return;\n    }\n    pill('off', rebooting ? 'Rebooting' : 'Offline');\n    banner(rebooting ? 'Rebooting — this page will reconnect by itself.' : 'Can’t reach BlockGrid. Is it powered on and on this Wi-Fi network?');\n    document.querySelectorAll('button, input, select').forEach(el => el.disabled = true);\n  }\n}\n\n// One request at a time; if another change comes in meanwhile, only the\n// latest is sent once the current one finishes (keeps the device's load tiny).\nlet pending = null;\nasync function send(body) {\n  if (busy) { pending = body; return; }\n  busy = true;\n  let ok = false;\n  try {\n    const r = await fetch('/api/set', { method: 'POST', headers: { 'Content-Type': 'application/x-www-form-urlencoded' }, body });\n    if (r.ok) { ok = true; const s = await r.json(); if (!pending) render(s); }\n  } catch (e) {}\n  busy = false;\n  if (pending) { const b = pending; pending = null; send(b); }\n  else if (!ok) poll();\n}\n\n// Brightness: live while dragging (throttled), final value on release.\n$('bri').addEventListener('input', e => {\n  const b = posToBri(+e.target.value);\n  dragging = true; $('briVal').textContent = b;\n  clearTimeout(briTimer); briTimer = setTimeout(() => send('brightness=' + b), 150);\n});\n$('bri').addEventListener('change', e => { clearTimeout(briTimer); dragging = false; send('brightness=' + posToBri(+e.target.value)); });\nfunction stepBri(dir) {   // to the next level up or down\n  if (!S) return;\n  const b = S.brightness;\n  const next = dir > 0 ? (LEVELS.find(l => l > b) || 255) : (LEVELS.filter(l => l < b).pop() || 1);\n  send('brightness=' + next);\n}\n$('dn').onclick = () => stepBri(-1);\n$('power').onclick = () => { if (S) send('display=' + (S.display === false ? 1 : 0)); };\n$('upb').onclick = () => stepBri(1);\n\n// Reboot: tap once to arm, tap again within 4 s to confirm (\"click\" with a mouse).\nconst TAP = matchMedia('(hover: hover) and (pointer: fine)').matches ? 'Click' : 'Tap';\n$('reboot').onclick = async () => {\n  const b = $('reboot');\n  if (!b.classList.contains('confirm')) {\n    b.classList.add('confirm'); b.textContent = TAP + ' again to reboot';\n    confirmTimer = setTimeout(() => { b.classList.remove('confirm'); b.textContent = 'Reboot'; }, 4000);\n    return;\n  }\n  clearTimeout(confirmTimer); b.classList.remove('confirm'); b.textContent = 'Reboot';\n  rebooting = true; rebootAt = Date.now();\n  pill('off', 'Rebooting'); banner('Rebooting — this page will reconnect by itself.');\n  document.querySelectorAll('button, input, select').forEach(el => el.disabled = true);\n  try { await fetch('/api/reboot', { method: 'POST' }); } catch (e) {}\n};\n\n// My node: the block height from the mempool app on your own node (e.g. a\n// Start9 on this network). BlockGrid asks it first and falls back to\n// mempool.space and blockstream.info whenever it doesn't answer.\nlet nodeDirty = false;\nfunction nodeRender(s) {\n  const mine = s.blockSrcs[s.blockSrc] === 'My node';\n  $('nodeBox').hidden = !mine;\n  if (!mine) return;\n  if (!nodeDirty && document.activeElement !== $('nodeUrl')) $('nodeUrl').value = s.nodeUrl || '';\n  const m = $('nodeMsg');\n  if (!s.nodeUrl) { m.className = 'wmsg'; m.textContent = 'Enter your node’s address. Until then the block height comes from mempool.space and blockstream.info.'; }\n  else if (s.nodeOk === true) { m.className = 'wmsg good'; m.textContent = 'Block height from your node.'; }\n  else if (s.nodeOk === false) { m.className = 'wmsg bad'; m.textContent = 'Your node didn’t answer' + (s.nodeErr ? ' (' + s.nodeErr + ')' : '') + (s.blockFrom ? ' — using ' + s.blockFrom + ' meanwhile' : '') + '. Check the address, and that the node is on and reachable from this network.'; }\n  else { m.className = 'wmsg'; m.textContent = 'Checking your node…'; }\n}\n$('nodeUrl').addEventListener('input', () => { nodeDirty = true; });\n$('nodeSave').onclick = () => {\n  let v = $('nodeUrl').value.trim().replace(/\\/+$/, '').replace(/(:\\/\\/[^\\/]+)\\/api(\\/.*)?$/, '$1');   // the full API address works too\n  if (!/^https?:\\/\\/[^\\s\\x22\\x27<>\\\\]+$/.test(v) || v.length > 120) {   // \\x22 \\x27: quote marks (kept out of the sketch's raw string, which confuses the Arduino IDE)\n    $('nodeMsg').className = 'wmsg bad';\n    $('nodeMsg').textContent = 'Enter the address starting with https:\\/\\/ (or http:\\/\\/), e.g. https:\\/\\/192.168.1.50:50194';\n    return;\n  }\n  $('nodeUrl').value = v; nodeDirty = false;\n  send('nodeUrl=' + encodeURIComponent(v));\n};\n$('nodeUrl').addEventListener('keydown', e => { if (e.key === 'Enter') $('nodeSave').click(); });\n\n// Wi-Fi: move BlockGrid to another network. The list comes from a scan the\n// device runs when the form opens (and on \"Scan again\"); names are only ever\n// put into the page as text. BlockGrid tries the new network first and keeps\n// it only if it connects — otherwise it returns to this one and says so.\nlet joining = null, scanTimer = null;   // joining = { ssid, at } while it tries\nfunction wifiMsg(text, cls) { const m = $('wifiMsg'); m.textContent = text || ''; m.className = 'wmsg ' + (cls || ''); m.hidden = !text; }\nfunction joinText() {\n  const name = S && S.name ? S.name + '.local' : 'BlockGrid';\n  return Date.now() - joining.at < 90000\n    ? 'BlockGrid is trying “' + joining.ssid + '”. If it connects, it restarts on that network; if not, it comes back here within about 30 s.'\n    : 'BlockGrid hasn’t come back to this network, so it’s probably on “' + joining.ssid + '” now. Join that network and open ' + name + '.';\n}\nfunction showWifiForm(show) {\n  $('wifiForm').hidden = !show; $('wifiOpen').hidden = show;\n  clearTimeout(scanTimer);\n  if (show) { $('wssid').value = ''; $('wpass').value = ''; wifiMsg(''); fillNets({ scanning: true, networks: [] }); scan(true); }\n}\nasync function scan(fresh) {\n  clearTimeout(scanTimer);\n  let r = null;\n  try {\n    const res = await fetch('/api/wifi/scan', fresh ? { method: 'POST' } : { cache: 'no-store' });\n    if (res.ok) r = await res.json();\n  } catch (e) {}\n  if (!r) { $('rescan').textContent = 'Scan again'; return; }\n  fillNets(r);\n  if (r.scanning && !$('wifiForm').hidden) scanTimer = setTimeout(() => scan(false), 1000);\n}\nfunction fillNets(r) {\n  const sel = $('nets'), keep = sel.value, nets = r.networks || [];\n  sel.textContent = '';\n  const add = (value, text) => { const o = document.createElement('option'); o.value = value; o.textContent = text; sel.appendChild(o); return o; };\n  add('', r.scanning ? 'Scanning…' : nets.length ? 'Choose a network (' + nets.length + ')' : 'No networks found');\n  nets.forEach(n => { add(n.ssid, n.ssid + '  ' + n.rssi + ' dBm' + (n.open ? ' · open' : '')).dataset.open = n.open ? '1' : ''; });\n  sel.value = keep;\n  if (sel.value !== keep) sel.value = '';\n  $('rescan').textContent = r.scanning ? 'Scanning…' : 'Scan again';\n  $('rescan').dataset.busy = r.scanning ? '1' : '';\n}\n$('nets').onchange = () => {\n  const o = $('nets').selectedOptions[0];\n  if (!o || !o.value) return;\n  $('wssid').value = o.value;\n  $('wpass').placeholder = o.dataset.open ? 'No password needed' : 'Network password';\n  if (o.dataset.open) $('wpass').value = '';   // a password makes the join fail on an open network\n  wifiMsg('');\n  if (!o.dataset.open) $('wpass').focus();\n};\n$('rescan').onclick = () => { if (!$('rescan').dataset.busy) scan(true); };\n$('wshow').onclick = () => { const p = $('wpass'), hid = p.type === 'password'; p.type = hid ? 'text' : 'password'; $('wshow').textContent = hid ? 'Hide' : 'Show'; };\n$('wifiOpen').onclick = () => showWifiForm(true);\n$('wifiCancel').onclick = () => showWifiForm(false);\n$('wifiJoin').onclick = async () => {\n  const ssid = $('wssid').value, pw = $('wpass').value;\n  let err = '';\n  if (!ssid.trim()) err = 'Choose or enter a network name.';\n  else if (new TextEncoder().encode(ssid).length > 32) err = 'That network name is too long.';\n  else if (pw.length && (pw.length < 8 || pw.length > 64)) err = 'Wi-Fi passwords are 8 to 63 characters.';\n  if (err) { wifiMsg(err, 'bad'); return; }\n  $('wifiJoin').disabled = true;\n  let r = null;\n  try {\n    const res = await fetch('/api/wifi', { method: 'POST', headers: { 'Content-Type': 'application/x-www-form-urlencoded' },\n      body: 'ssid=' + encodeURIComponent(ssid) + '&password=' + encodeURIComponent(pw) });\n    r = await res.json();\n  } catch (e) {}\n  $('wifiJoin').disabled = false;\n  if (!r || !r.ok) { wifiMsg(r && r.error ? r.error : 'BlockGrid didn’t answer — try again.', 'bad'); return; }\n  joining = { ssid, at: Date.now() };\n  showWifiForm(false);\n  wifiMsg('Trying “' + ssid + '”…', '');\n  pill('warn', 'Switching Wi-Fi'); banner(joinText());\n};\n\n// Check in every 5 s while the page is open (every 2 s while rebooting or\n// switching networks); nothing at all while the tab is in the background.\nasync function loop() { if (!document.hidden) await poll(); setTimeout(loop, rebooting || joining ? 2000 : 5000); }\nloop();\ndocument.addEventListener('visibilitychange', () => { if (!document.hidden) poll(); });\n<\/script>\n<\/body>\n<\/html>\n";
+// The Wi-Fi setup page (setup mode's "/", the sketch's SETUP_PAGE) and the
+// page /save answers with. Shown in the phone frame while in AP setup mode.
+const SETUP_PAGE_HTML = "<!DOCTYPE html>\n<html>\n<head>\n<meta charset=\"UTF-8\">\n<meta name=\"viewport\" content=\"width=device-width, initial-scale=1, maximum-scale=1\">\n<title>BlockGrid Setup<\/title>\n<style>\n  /* Orange BlockGrid theme, same as the web control page and the\n     simulator. In setup mode the phone is on BlockGrid's own network with\n     no internet, so the Orbitron / Share Tech Mono fonts usually can't load\n     and the built-in monospace font is used instead. */\n  @import url('https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Orbitron:wght@500;700&display=swap');\n  :root {\n    --bg: #0b0b0c; --card: #131315; --accent: #ff9f1c; --accent-bright: #ffc15e; --accent-dim: #5c3a0c;\n    --text: #d6d6d6; --text-dim: #8a8a8f; --border: #232327; --danger: #ff4a4a; --field: #1a1a1d;\n    --mono: 'Share Tech Mono', ui-monospace, 'SFMono-Regular', Menlo, Consolas, monospace;\n    --head: 'Orbitron', var(--mono);\n  }\n  * { box-sizing: border-box; }\n  body {\n    margin: 0; min-height: 100vh; display: flex; align-items: center; justify-content: center;\n    background: var(--bg); color: var(--text);\n    font-family: var(--mono);\n    padding: 24px 16px;\n  }\n  input, button, select { font-family: inherit; }\n  .card {\n    width: 100%; max-width: 380px; background: var(--card); border: 1px solid var(--border);\n    border-radius: 16px; padding: 28px 24px; box-shadow: 0 8px 32px rgba(0,0,0,.5);\n  }\n  .logo { text-align: center; font-family: var(--head); font-size: 20px; font-weight: 700; letter-spacing: .22em; padding-left: .22em; text-transform: uppercase; margin-bottom: 8px; }\n  .logo span { color: var(--accent); }\n  .subtitle { text-align: center; color: var(--text-dim); font-size: 13px; margin-bottom: 24px; }\n  label { display: block; font-family: var(--head); font-size: 10px; font-weight: 500; letter-spacing: .24em; text-transform: uppercase; color: var(--text-dim); margin: 18px 0 8px; }\n  .field { position: relative; }\n  .netrow { display: flex; gap: 8px; }\n  input[type=\"text\"], input[type=\"password\"], select {\n    width: 100%; min-width: 0; height: 48px; background: var(--field); border: 1px solid var(--border);\n    border-radius: 10px; color: var(--text); font-size: 16px; padding: 0 14px;\n  }\n  select { flex: 1; padding: 0 10px; }\n  input[type=\"password\"], .field input[type=\"text\"] { padding-right: 64px; }\n  input:focus, select:focus { outline: none; border-color: var(--accent-dim); }\n  .toggle-pw {\n    position: absolute; right: 4px; top: 4px; height: 40px; padding: 0 12px;\n    background: none; border: none; color: var(--text-dim); font-size: 13px; cursor: pointer;\n  }\n  .scan {\n    flex: none; height: 48px; padding: 0 14px; border-radius: 10px; border: 1px solid var(--border);\n    background: var(--field); color: var(--text); font-size: 14px; cursor: pointer;\n  }\n  .scan:disabled { color: var(--text-dim); cursor: default; }\n  button[type=\"submit\"] {\n    width: 100%; height: 50px; margin-top: 24px; background: var(--accent); color: #111;\n    border: none; border-radius: 10px; font-size: 16px; font-weight: 700; cursor: pointer;\n  }\n  button[type=\"submit\"]:disabled { background: var(--accent-dim); color: #444; }\n  .error { color: var(--danger); font-size: 13px; text-align: center; margin-top: 12px; min-height: 16px; }\n  .hint { color: var(--text-dim); font-size: 12px; text-align: center; margin-top: 16px; line-height: 1.5; }\n  .small { color: var(--text-dim); font-size: 11.5px; margin-top: 8px; line-height: 1.5; }\n<\/style>\n<\/head>\n<body>\n<div class=\"card\">\n  <div class=\"logo\">Block<span>Grid<\/span><\/div>\n  <div class=\"subtitle\">Connect to your WiFi network<\/div>\n\n  <form id=\"setupForm\" action=\"/save\" method=\"post\" onsubmit=\"return onSubmit()\">\n    <label for=\"nets\">Nearby networks<\/label>\n    <div class=\"netrow\">\n      <select id=\"nets\"><option value=\"\">Looking for networks…<\/option><\/select>\n      <button type=\"button\" class=\"scan\" id=\"rescan\" onclick=\"scan(true)\">Scan<\/button>\n    <\/div>\n    <div class=\"small\">Not listed (a hidden network)? Type its name below.<\/div>\n\n    <label for=\"ssid\">Network name<\/label>\n    <input type=\"text\" name=\"ssid\" id=\"ssid\" maxlength=\"32\" placeholder=\"Network name\" autocomplete=\"off\" autocapitalize=\"off\" spellcheck=\"false\">\n\n    <label for=\"password\">Password<\/label>\n    <div class=\"field\">\n      <input type=\"password\" name=\"password\" id=\"password\" maxlength=\"64\" placeholder=\"Network password\" autocomplete=\"off\">\n      <button type=\"button\" class=\"toggle-pw\" onclick=\"togglePw()\">Show<\/button>\n    <\/div>\n\n    <div class=\"error\" id=\"formError\"><\/div>\n    <button type=\"submit\" id=\"submitBtn\">Connect<\/button>\n  <\/form>\n  <div class=\"hint\">BlockGrid will restart and connect to this network once submitted.<\/div>\n<\/div>\n\n<script>\nconst $ = id => document.getElementById(id);\n\n// Nearby networks: BlockGrid scans once as its setup network starts, before\n// any phone has joined, and again only when Scan is pressed — a scan can\n// knock the phone off the setup network for a moment. Names are put into\n// the page as text (never as HTML), so any network name is shown safely.\nlet scanTimer = null;\nasync function scan(fresh) {\n  clearTimeout(scanTimer);\n  if (fresh) { $('rescan').disabled = true; $('rescan').textContent = '…'; }\n  let r = null;\n  try {\n    const res = await fetch('/api/wifi/scan', fresh ? { method: 'POST' } : { cache: 'no-store' });\n    if (res.ok) r = await res.json();\n  } catch (e) {}\n  if (!r) { $('rescan').disabled = false; $('rescan').textContent = 'Scan'; scanTimer = setTimeout(() => scan(false), 3000); return; }\n  fillNets(r);\n  if (r.scanning) scanTimer = setTimeout(() => scan(false), 1000);\n}\n\nfunction fillNets(r) {\n  const sel = $('nets'), keep = sel.value, nets = r.networks || [];\n  sel.textContent = '';\n  const add = (value, text) => { const o = document.createElement('option'); o.value = value; o.textContent = text; sel.appendChild(o); return o; };\n  add('', r.scanning ? 'Scanning…' : nets.length ? 'Choose a network (' + nets.length + ')' : 'No networks found');\n  nets.forEach(n => { add(n.ssid, n.ssid + '  ' + n.rssi + ' dBm' + (n.open ? ' · open' : '')).dataset.open = n.open ? '1' : ''; });\n  sel.value = keep;\n  if (sel.value !== keep) sel.value = '';\n  $('rescan').disabled = !!r.scanning;\n  $('rescan').textContent = r.scanning ? '…' : 'Scan';\n}\n\n$('nets').onchange = () => {\n  const o = $('nets').selectedOptions[0];\n  if (!o || !o.value) return;\n  $('ssid').value = o.value;\n  $('password').placeholder = o.dataset.open ? 'No password needed' : 'Network password';\n  if (o.dataset.open) $('password').value = '';   // a password makes the join fail on an open network\n  $('formError').textContent = '';\n  if (!o.dataset.open) $('password').focus();\n};\n\nfunction togglePw() {\n  const pw = $('password');\n  const btn = document.querySelector('.toggle-pw');\n  const isHidden = pw.type === 'password';\n  pw.type = isHidden ? 'text' : 'password';\n  btn.textContent = isHidden ? 'Hide' : 'Show';\n}\n\nfunction onSubmit() {\n  const ssid = $('ssid').value, pw = $('password').value;\n  const err = $('formError');\n  if (!ssid.trim()) { err.textContent = 'Choose or enter a network name.'; return false; }\n  if (new TextEncoder().encode(ssid).length > 32) { err.textContent = 'That network name is too long.'; return false; }\n  if (pw.length && (pw.length < 8 || pw.length > 64)) { err.textContent = 'Wi-Fi passwords are 8 to 63 characters.'; return false; }\n  $('submitBtn').disabled = true;\n  $('submitBtn').textContent = 'Connecting…';\n  return true;\n}\n\nscan(false);\n<\/script>\n<\/body>\n<\/html>\n";
+const SETUP_SAVED_HTML = "<!DOCTYPE html>\n<html>\n<head>\n<meta charset=\"UTF-8\">\n<meta name=\"viewport\" content=\"width=device-width, initial-scale=1\">\n<title>BlockGrid Setup<\/title>\n<style>\n  body {\n    margin: 0; min-height: 100vh; display: flex; align-items: center; justify-content: center;\n    background: #0b0b0c; color: #d6d6d6;\n    font-family: 'Share Tech Mono', ui-monospace, 'SFMono-Regular', Menlo, Consolas, monospace;\n  }\n  .card { text-align: center; padding: 32px; }\n  .spinner {\n    width: 36px; height: 36px; margin: 0 auto 20px; border: 3px solid #232327;\n    border-top-color: #ff9f1c; border-radius: 50%; animation: spin .8s linear infinite;\n  }\n  @keyframes spin { to { transform: rotate(360deg); } }\n  h2 { margin: 0 0 8px; font-size: 18px; }\n  p { color: #8a8a8f; font-size: 14px; margin: 0; }\n<\/style>\n<\/head>\n<body>\n<div class=\"card\">\n  <div class=\"spinner\"><\/div>\n  <h2>Saved<\/h2>\n  <p>BlockGrid is restarting and connecting to your network…<\/p>\n<\/div>\n<\/body>\n<\/html>";
+let simBootAt = Date.now();
+const SIM_DEVICE_NAME = 'blockgrid-3f2a';   // real devices: 'blockgrid-' + last 4 hex digits of their MAC
+// Data source settings — mirror the sketch's priceSrcNames / blockSrcNames /
+// intervalSecs (the web page's "Data sources" card; the interval is the
+// price's — the device always checks the block height every minute). The simulator doesn't
+// fetch anything, so these only change what the page reports.
+const SIM_PRICE_SRCS = ['Auto', 'CoinGecko', 'Backup only'];
+const SIM_BLOCK_SRCS = ['Auto', 'mempool.space', 'blockstream.info', 'My node'];
+// My node (the sketch's nodeUrl): the simulated node answers at any address
+// on a private network (192.168.…, 10.…, 172.16–31.…) and nowhere else.
+let simNodeUrl = '', simNodeOk = null, simNodeTimer = null;
+function simNodeAnswers(u) { return /^https?:\/\/(192\.168\.|10\.|172\.(1[6-9]|2\d|3[01])\.)/.test(u); }
+function simCheckNode() {   // as the device does after a change: the next block check
+  clearTimeout(simNodeTimer); simNodeOk = null;
+  if (simBlockSrc === 3 && simNodeUrl) simNodeTimer = setTimeout(() => { simNodeOk = simNodeAnswers(simNodeUrl); }, 1200);
+}
+const SIM_INTERVAL_SECS = [30, 60, 120, 300, 600];
+const SIM_INTERVAL_NAMES = ['30 s', '1 min', '2 min', '5 min', '10 min'];
+let simPriceSrc = 0, simBlockSrc = 0, simInterval = 3;   // default: price every 5 min, as on the device
+
+function simStatus() {
+  const jpy = currencyOptions[currentCurrencyIndex] === 'JPY';
+  const noData = state.mode === 'error' || state.mode === 'splash';
+  const up = Math.floor((Date.now() - simBootAt) / 1000);
+  return {
+    name: SIM_DEVICE_NAME,
+    mode: state.mode === 'splash' ? 'starting' : state.mode,
+    display: !displayOff,
+    brightness: parseInt(document.getElementById('brightness').value, 10),
+    brand: currentBrandIndex,
+    brands: brandProfiles.map(b => b.name),
+    currency: currencyOptions[currentCurrencyIndex],
+    currencies: currencyOptions.slice(),
+    effect: PRICE_FX.indexOf(priceAnimStyle),
+    effects: PRICE_FX_NAMES.slice(),
+    block: noData ? 0 : (blockAnim ? blockAnim.newValue : state.block),
+    price: noData ? 0 : (jpy ? priceJPY() : currencyOptions[currentCurrencyIndex] === 'EUR' ? priceEUR() : state.price),
+    change: state.priceChangePct,
+    sats: noData ? 0 : (jpy ? satsPer100Yen() : currencyOptions[currentCurrencyIndex] === 'EUR' ? satsPerEUR() : sats()),
+    updatedAgo: up % SIM_INTERVAL_SECS[simInterval],
+    stale: false,
+    priceFrom: noData ? '' : (simPriceSrc === 2 ? 'mempool.space + Coinbase' : 'CoinGecko'),
+    priceSrc: simPriceSrc, priceSrcs: SIM_PRICE_SRCS.slice(),
+    nodeUrl: simNodeUrl, nodeOk: simBlockSrc === 3 && simNodeUrl ? simNodeOk : null,
+    nodeErr: simNodeOk === false ? 'connection failed' : '',
+    blockFrom: noData ? '' : simBlockSrc === 2 ? 'blockstream.info' : simBlockSrc === 3 && simNodeUrl && simNodeOk ? 'My node' : 'mempool.space',
+    blockSrc: simBlockSrc, blockSrcs: SIM_BLOCK_SRCS.slice(),
+    interval: simInterval, intervals: SIM_INTERVAL_NAMES.slice(),
+    rssi: -61 - Math.round(Math.random() * 4),
+    ssid: simSsid,
+    wifiFail: simWifiFail && Date.now() - simWifiFailAt < 600000 ? simWifiFail : '',
+    heap: 118000 + Math.round(Math.random() * 3000),
+    largest: 61400 + Math.round(Math.random() * 1200),
+    uptime: up,
+  };
+}
+
+// Wi-Fi: the networks a scan finds, the one in use, and the Wi-Fi card's
+// "join another network" attempt. Joining works for a listed network with
+// any password of 8+ characters except "wrongpassword" (none for an open
+// one); anything else fails and the device comes back, as the real one does.
+const SIM_NETWORKS = [
+  { ssid: 'HomeNet', rssi: -48, open: false },
+  { ssid: 'Upstairs', rssi: -63, open: false },
+  { ssid: 'Café "Guest" <free>', rssi: -71, open: true },
+  { ssid: 'NETGEAR42', rssi: -79, open: false },
+  { ssid: 'DIRECT-7f-Printer', rssi: -86, open: false },
+];
+let simSsid = 'HomeNet', simWifiFail = '', simWifiFailAt = 0, simJoin = null;
+const simScan = { running: false, nets: [] };
+function simScanNow() {
+  simScan.nets = SIM_NETWORKS.map(n => ({ ...n, rssi: n.rssi + Math.round(Math.random() * 6 - 3) })).sort((a, b) => b.rssi - a.rssi);
+}
+function simStartScan() {   // in the background, like WiFi.scanNetworks(true)
+  if (simScan.running) return;
+  simScan.running = true;
+  setTimeout(() => { simScan.running = false; simScanNow(); }, 2500);
+}
+// Same checks as the sketch's wifiCredentialsError().
+function simCredError(ssid, pw) {
+  const n = new TextEncoder().encode(ssid).length;
+  if (n === 0 || n > 32) return 'Network names are 1 to 32 characters.';
+  if (pw.length && (pw.length < 8 || pw.length > 64)) return 'Wi-Fi passwords are 8 to 63 characters.';
+  return null;
+}
+function simTryNetwork(ssid, pw) {
+  const net = SIM_NETWORKS.find(n => n.ssid === ssid);
+  const ok = !!net && (net.open ? pw === '' : pw.length >= 8 && pw !== 'wrongpassword');
+  simJoin = { ssid };
+  simWifiFail = '';
+  setTimeout(() => {
+    simJoin = null;
+    if (ok) { simSsid = ssid; cancelAllButtons(); triggerReboot(); }   // saved; restarts on the new network
+    else { simWifiFail = ssid; simWifiFailAt = Date.now(); }           // back on the old network
+  }, ok ? 4000 : 9000);
+}
+// The setup page's form (POST /save): saved, then a restart onto that network.
+function simSetupSave(form) {
+  const ssid = form.get('ssid') || '', pw = form.get('password') || '';
+  if (simCredError(ssid, pw)) return;   // the page checks first; the device would answer 400
+  document.getElementById('control-page').srcdoc = SETUP_SAVED_HTML;
+  setTimeout(() => { simSsid = ssid; triggerReboot(); }, 1000);
+}
+
+function simApi(url, opts = {}) {
+  const method = (opts.method || 'GET').toUpperCase();
+  const path = String(url).split('?')[0];
+  const json = (obj, status = 200) => new Response(JSON.stringify(obj),
+    { status, headers: { 'Content-Type': 'application/json' } });
+  return new Promise((resolve, reject) => setTimeout(() => {
+    // Off the network: rebooting, or trying another network from the Wi-Fi card.
+    if (state.mode === 'rebooting' || simJoin) return reject(new TypeError('Failed to fetch'));
+
+    // Nearby networks — answered in AP setup mode too (the setup page's list).
+    if (path === '/api/wifi/scan' && (method === 'GET' || method === 'POST')) {
+      if (method === 'POST') simStartScan();
+      return resolve(json({ scanning: simScan.running, networks: simScan.nets }));
+    }
+    // In AP setup mode only the setup page's requests are answered.
+    if (state.mode === 'ap') return resolve(new Response('Not found', { status: 404 }));
+
+    if (path === '/api/wifi' && method === 'POST') {
+      if (!buttonsEnabled()) return resolve(json({ ok: false, error: 'BlockGrid is still starting up. Try again in a moment.' }, 503));
+      const q = new URLSearchParams(opts.body || '');
+      const ssid = q.get('ssid') || '', pw = q.get('password') || '';
+      const err = simCredError(ssid, pw);
+      if (err) return resolve(json({ ok: false, error: err }, 400));
+      resolve(json({ ok: true }));
+      setTimeout(() => simTryNetwork(ssid, pw), 500);
+      return;
+    }
+
+    if (path === '/api/status' && method === 'GET') return resolve(json(simStatus()));
+
+    if (path === '/api/set' && method === 'POST') {
+      if (!buttonsEnabled()) return resolve(json(simStatus(), 503));
+      const q = new URLSearchParams(opts.body || '');
+      if (q.has('brightness')) {
+        const v = Math.max(BRIGHTNESS_MIN, Math.min(BRIGHTNESS_MAX, parseInt(q.get('brightness'), 10) || 0));
+        document.getElementById('brightness').value = v;
+        document.getElementById('brightness-val').textContent = v;
+        displayOff = false;   // moving the slider turns the display back on
+        repaint();
+      }
+      if (q.has('display')) {
+        const v = q.get('display');
+        if (v === '0' || v === '1') setDisplayOff(v === '0');
+      }
+      if (q.has('brand')) {
+        const i = parseInt(q.get('brand'), 10);
+        if (i >= 0 && i < brandProfiles.length) currentBrandIndex = i;
+      }
+      const pick = (key, n, set) => { if (q.has(key)) { const i = parseInt(q.get(key), 10); if (i >= 0 && i < n) set(i); } };
+      pick('priceSource', SIM_PRICE_SRCS.length, i => simPriceSrc = i);
+      pick('blockSource', SIM_BLOCK_SRCS.length, i => { if (i !== simBlockSrc) { simBlockSrc = i; simCheckNode(); } });
+      if (q.has('nodeUrl')) {   // same checks as the sketch's normaliseNodeUrl()
+        let u = q.get('nodeUrl').trim().replace(/\/+$/, '').replace(/(:\/\/[^\/]+)\/api(\/.*)?$/, '$1');
+        if ((u === '' || (/^https?:\/\/[^\s"'<>\\]+$/.test(u) && u.length <= 120)) && u !== simNodeUrl) { simNodeUrl = u; simCheckNode(); }
+      }
+      pick('interval', SIM_INTERVAL_SECS.length, i => simInterval = i);
+      if (q.has('effect')) {
+        const i = parseInt(q.get('effect'), 10);
+        if (i >= 0 && i < PRICE_FX.length) setPriceFx(i);
+      }
+      if (q.has('currency')) {
+        const i = parseInt(q.get('currency'), 10);
+        if (i >= 0 && i < currencyOptions.length) currentCurrencyIndex = i;
+      }
+      redraw();
+      return resolve(json(simStatus()));
+    }
+
+    if (path === '/api/reboot' && method === 'POST') {
+      resolve(json({ ok: true }));
+      cancelAllButtons();
+      setTimeout(triggerReboot, 100);
+      return;
+    }
+    resolve(new Response('Not found', { status: 404 }));
+  }, 60 + Math.random() * 90));   // a little network latency, like the real thing
+}
+
+// In AP setup mode the frame shows the setup page, as a phone gets it by
+// itself after joining the BlockGrid network (captive portal); otherwise
+// the control page. fetch() and the setup form go to this simulator.
+let shownPage = '';
+function pageHtml(host) {
+  const setup = state.mode === 'ap';
+  const bridge = '<script>window.fetch = (u, o) => ' + host + '.simApi(u, o);' +
+    (setup ? 'document.addEventListener("submit", e => { if (e.defaultPrevented) return; e.preventDefault(); ' + host + '.simSetupSave(new FormData(e.target)); });' : '') +
+    '<\/script>';
+  return (setup ? SETUP_PAGE_HTML : CONTROL_PAGE_HTML).replace('<head>', '<head>' + bridge);
+}
+function loadControlPage() {
+  const setup = state.mode === 'ap';
+  shownPage = setup ? 'setup' : 'control';
+  document.querySelector('#control-card .url').textContent = setup ? '192.168.4.1' : SIM_DEVICE_NAME + '.local';
+  // (The hint texts are defined further down; on the very first load they
+  // aren't yet, and the hint already says the right thing.)
+  try { document.getElementById('control-hint').textContent = setup ? SETUP_HINT : controlDesktop ? DESK_HINT : PHONE_HINT; } catch (e) {}
+  document.getElementById('control-page').srcdoc = pageHtml('parent');
+}
+// Switches the frame between the two pages when the mode crosses AP setup.
+function syncControlPage() { if ((state.mode === 'ap' ? 'setup' : 'control') !== shownPage) loadControlPage(); }
+loadControlPage();
+
+// Phone (390 px) or desktop (1120 px) layout, scaled to fit the frame.
+// Desktop view moves the page under the display (on a wide window; when
+// everything is stacked in one column it stays where it is).
+let controlDesktop = false, fitControlPage = () => {};
+const wideWindow = matchMedia('(min-width: 981px)');
+const PHONE_HINT = document.getElementById('control-hint').textContent;
+const DESK_HINT = "The page as a desktop browser shows it, running against this simulated device. Changes made with the device buttons show up here within 5 s. It's unreachable while the device reboots. The Wi-Fi card joins any listed network with a password of 8+ characters except “wrongpassword”. My node answers at any private-network address (192.168.…).";
+const SETUP_HINT = "AP setup mode: the setup page a phone opens by itself after joining the BlockGrid network (captive portal). Pick a network and connect — the simulated device restarts onto it.";
+function placeControlPage() {
+  const card = document.getElementById('control-card');
+  const under = controlDesktop && wideWindow.matches;
+  const slot = document.getElementById(under ? 'control-slot-desk' : 'control-slot-phone');
+  if (card.parentElement !== slot) slot.appendChild(card);   // the page reloads itself when moved
+  card.classList.toggle('wide', under);
+  document.querySelector('.layout').classList.toggle('desk-view', under);
+  document.getElementById('control-hint').textContent = state.mode === 'ap' ? SETUP_HINT : controlDesktop ? DESK_HINT : PHONE_HINT;
+  fitControlPage();
+}
+function toggleControlView() {
+  controlDesktop = !controlDesktop;
+  document.getElementById('viewToggle').textContent = controlDesktop ? 'Phone' : 'Desktop';
+  document.getElementById('viewToggle').title = controlDesktop ? 'Show the page as a phone would' : 'Show the page as a desktop browser would';
+  placeControlPage();
+}
+wideWindow.addEventListener('change', placeControlPage);
+// Full-size copy of the page in its own window, talking to this simulator.
+function popControlPage() {
+  const w = window.open('', 'blockgrid-control', 'width=1280,height=900');
+  if (!w) return;
+  w.document.open();
+  w.document.write(pageHtml('opener'));
+  w.document.close();
+}
+
+// Fit the page into the frame, whatever width the column is.
+(() => {
+  const screen = document.getElementById('control-screen'), frame = document.getElementById('control-page');
+  const fit = () => {
+    // Desktop: as tall as the page itself, so it never scrolls inside the frame.
+    let [w, h] = controlDesktop ? [1120, 900] : [390, 760];
+    if (controlDesktop) {
+      try { const m = frame.contentDocument && frame.contentDocument.querySelector('main'); if (m) h = Math.max(600, Math.ceil(m.getBoundingClientRect().bottom + 48)); } catch (e) {}   // the body is 100vh tall, so measure the content itself
+    }
+    const s = screen.clientWidth / w;
+    frame.style.width = w + 'px'; frame.style.height = h + 'px';
+    frame.style.transform = 'scale(' + s + ')';
+    screen.style.height = Math.round(h * s) + 'px';
+  };
+  fitControlPage = fit;
+  frame.addEventListener('load', fit);
+  setInterval(() => { if (controlDesktop) fit(); }, 700);   // follows the page's height (banners come and go)
+  if (window.ResizeObserver) new ResizeObserver(fit).observe(screen);
+  fit();
+})();
+
+// init
+runBootSequence();
+
+// Keeps the splash animating while that mode is active. Cheap no-op the
+// rest of the time (just a mode check, no redraw), so there's no need to
+// start/stop this alongside setMode() — it's always safe to leave running.
+setInterval(() => { if (state.mode === 'splash' || blockAnim || priceAnim) redraw(); }, 50);
+</script>
+</body>
+</html>

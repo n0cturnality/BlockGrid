@@ -1,0 +1,175 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1000 902" width="900" role="img" aria-label="Wiring diagram for the ESP32 screw-terminal breakout. Left terminals: D32 top button, D33 grey wire 8 E, D25 brown wire 1 R1, D26 red wire 2 G1, D27 orange wire 3 B1, D14 green wire 5 R2, D12 blue wire 6 G2, D13 purple wire 7 B2, GND yellow wire 4 and the power negative, VIN power positive. Right terminals: D23 white wire 9 A, D19 black wire 10 B, D18 bottom button, D5 brown wire 11 C, TX2 red wire 12 D, RX2 orange wire 13 CLK, D4 yellow wire 14 LAT, D15 green wire 15 OE, GND blue wire 16 and the buttons' ground.">
+<style>text{font-family:Helvetica,Arial,sans-serif;fill:#24292f}
+.h{font-size:22px;font-weight:700;text-anchor:middle;letter-spacing:2px} .s{font-size:14px;text-anchor:middle;fill:#57606a}
+.pl{font-size:13px;font-weight:700;fill:#e6e8eb} .m{font-size:15px;font-weight:700;text-anchor:middle;fill:#3a3d43}
+.w{font-size:14px;text-anchor:middle;fill:#9ea3ab} .w2{font-size:11px;text-anchor:middle;fill:#9ea3ab}
+.rl{font-size:15px;font-weight:700} .pw{font-size:13px;fill:#b3261e;font-weight:700} .bt{font-size:13px;fill:#57606a;font-style:italic}
+.k{font-size:13px;font-weight:700;text-anchor:middle;letter-spacing:1px;fill:#57606a} .kn{font-size:14px;font-weight:700;text-anchor:middle} .ks{font-size:12px;text-anchor:middle;fill:#57606a}</style>
+<rect width="1000" height="902" rx="14" fill="#ffffff"/>
+<text x="500.0" y="34" class="h">ESP32 BREAKOUT WIRING</text>
+<text x="500.0" y="58" class="s">Ribbon wire number · HUB75 signal. Seen from above, USB socket at the bottom.</text>
+<rect x="360" y="96" width="280" height="660" rx="10" fill="#1c1d20"/>
+<rect x="438" y="126" width="124" height="600" rx="6" fill="#2b2d33" stroke="#4a4d55"/>
+<rect x="452" y="146" width="96" height="96" rx="4" fill="#b8bcc2"/>
+<text x="500.0" y="201" class="m">ESP-32</text>
+<text x="500.0" y="446.0" class="w">ESP32</text><text x="500.0" y="466.0" class="w">DevKit V1</text>
+<rect x="480.0" y="706" width="40" height="26" rx="5" fill="#c9ccd1"/><text x="500.0" y="748" class="w2">USB-C</text>
+<rect x="377" y="119" width="34" height="600" rx="3" fill="#2fa65a"/>
+<circle cx="394" cy="136" r="11" fill="#d9dce0" stroke="#7d828a"/><line x1="387" y1="143" x2="401" y2="129" stroke="#7d828a" stroke-width="2.4"/>
+<text x="424" y="141" class="pl" text-anchor="start">EN</text>
+<circle cx="394" cy="176" r="11" fill="#d9dce0" stroke="#7d828a"/><line x1="387" y1="183" x2="401" y2="169" stroke="#7d828a" stroke-width="2.4"/>
+<text x="424" y="181" class="pl" text-anchor="start">VP</text>
+<circle cx="394" cy="216" r="11" fill="#d9dce0" stroke="#7d828a"/><line x1="387" y1="223" x2="401" y2="209" stroke="#7d828a" stroke-width="2.4"/>
+<text x="424" y="221" class="pl" text-anchor="start">VN</text>
+<circle cx="394" cy="256" r="11" fill="#d9dce0" stroke="#7d828a"/><line x1="387" y1="263" x2="401" y2="249" stroke="#7d828a" stroke-width="2.4"/>
+<text x="424" y="261" class="pl" text-anchor="start">D34</text>
+<circle cx="394" cy="296" r="11" fill="#d9dce0" stroke="#7d828a"/><line x1="387" y1="303" x2="401" y2="289" stroke="#7d828a" stroke-width="2.4"/>
+<text x="424" y="301" class="pl" text-anchor="start">D35</text>
+<circle cx="394" cy="336" r="11" fill="#d9dce0" stroke="#7d828a"/><line x1="387" y1="343" x2="401" y2="329" stroke="#7d828a" stroke-width="2.4"/>
+<text x="424" y="341" class="pl" text-anchor="start">D32</text>
+<circle cx="394" cy="376" r="11" fill="#d9dce0" stroke="#7d828a"/><line x1="387" y1="383" x2="401" y2="369" stroke="#7d828a" stroke-width="2.4"/>
+<text x="424" y="381" class="pl" text-anchor="start">D33</text>
+<circle cx="394" cy="416" r="11" fill="#d9dce0" stroke="#7d828a"/><line x1="387" y1="423" x2="401" y2="409" stroke="#7d828a" stroke-width="2.4"/>
+<text x="424" y="421" class="pl" text-anchor="start">D25</text>
+<circle cx="394" cy="456" r="11" fill="#d9dce0" stroke="#7d828a"/><line x1="387" y1="463" x2="401" y2="449" stroke="#7d828a" stroke-width="2.4"/>
+<text x="424" y="461" class="pl" text-anchor="start">D26</text>
+<circle cx="394" cy="496" r="11" fill="#d9dce0" stroke="#7d828a"/><line x1="387" y1="503" x2="401" y2="489" stroke="#7d828a" stroke-width="2.4"/>
+<text x="424" y="501" class="pl" text-anchor="start">D27</text>
+<circle cx="394" cy="536" r="11" fill="#d9dce0" stroke="#7d828a"/><line x1="387" y1="543" x2="401" y2="529" stroke="#7d828a" stroke-width="2.4"/>
+<text x="424" y="541" class="pl" text-anchor="start">D14</text>
+<circle cx="394" cy="576" r="11" fill="#d9dce0" stroke="#7d828a"/><line x1="387" y1="583" x2="401" y2="569" stroke="#7d828a" stroke-width="2.4"/>
+<text x="424" y="581" class="pl" text-anchor="start">D12</text>
+<circle cx="394" cy="616" r="11" fill="#d9dce0" stroke="#7d828a"/><line x1="387" y1="623" x2="401" y2="609" stroke="#7d828a" stroke-width="2.4"/>
+<text x="424" y="621" class="pl" text-anchor="start">D13</text>
+<circle cx="394" cy="656" r="11" fill="#d9dce0" stroke="#7d828a"/><line x1="387" y1="663" x2="401" y2="649" stroke="#7d828a" stroke-width="2.4"/>
+<text x="424" y="661" class="pl" text-anchor="start">GND</text>
+<circle cx="394" cy="696" r="11" fill="#d9dce0" stroke="#7d828a"/><line x1="387" y1="703" x2="401" y2="689" stroke="#7d828a" stroke-width="2.4"/>
+<text x="424" y="701" class="pl" text-anchor="start">VIN</text>
+<rect x="589" y="119" width="34" height="600" rx="3" fill="#2fa65a"/>
+<circle cx="606" cy="136" r="11" fill="#d9dce0" stroke="#7d828a"/><line x1="599" y1="143" x2="613" y2="129" stroke="#7d828a" stroke-width="2.4"/>
+<text x="576" y="141" class="pl" text-anchor="end">D23</text>
+<circle cx="606" cy="176" r="11" fill="#d9dce0" stroke="#7d828a"/><line x1="599" y1="183" x2="613" y2="169" stroke="#7d828a" stroke-width="2.4"/>
+<text x="576" y="181" class="pl" text-anchor="end">D22</text>
+<circle cx="606" cy="216" r="11" fill="#d9dce0" stroke="#7d828a"/><line x1="599" y1="223" x2="613" y2="209" stroke="#7d828a" stroke-width="2.4"/>
+<text x="576" y="221" class="pl" text-anchor="end">TX0</text>
+<circle cx="606" cy="256" r="11" fill="#d9dce0" stroke="#7d828a"/><line x1="599" y1="263" x2="613" y2="249" stroke="#7d828a" stroke-width="2.4"/>
+<text x="576" y="261" class="pl" text-anchor="end">RX0</text>
+<circle cx="606" cy="296" r="11" fill="#d9dce0" stroke="#7d828a"/><line x1="599" y1="303" x2="613" y2="289" stroke="#7d828a" stroke-width="2.4"/>
+<text x="576" y="301" class="pl" text-anchor="end">D21</text>
+<circle cx="606" cy="336" r="11" fill="#d9dce0" stroke="#7d828a"/><line x1="599" y1="343" x2="613" y2="329" stroke="#7d828a" stroke-width="2.4"/>
+<text x="576" y="341" class="pl" text-anchor="end">D19</text>
+<circle cx="606" cy="376" r="11" fill="#d9dce0" stroke="#7d828a"/><line x1="599" y1="383" x2="613" y2="369" stroke="#7d828a" stroke-width="2.4"/>
+<text x="576" y="381" class="pl" text-anchor="end">D18</text>
+<circle cx="606" cy="416" r="11" fill="#d9dce0" stroke="#7d828a"/><line x1="599" y1="423" x2="613" y2="409" stroke="#7d828a" stroke-width="2.4"/>
+<text x="576" y="421" class="pl" text-anchor="end">D5</text>
+<circle cx="606" cy="456" r="11" fill="#d9dce0" stroke="#7d828a"/><line x1="599" y1="463" x2="613" y2="449" stroke="#7d828a" stroke-width="2.4"/>
+<text x="576" y="461" class="pl" text-anchor="end">TX2</text>
+<circle cx="606" cy="496" r="11" fill="#d9dce0" stroke="#7d828a"/><line x1="599" y1="503" x2="613" y2="489" stroke="#7d828a" stroke-width="2.4"/>
+<text x="576" y="501" class="pl" text-anchor="end">RX2</text>
+<circle cx="606" cy="536" r="11" fill="#d9dce0" stroke="#7d828a"/><line x1="599" y1="543" x2="613" y2="529" stroke="#7d828a" stroke-width="2.4"/>
+<text x="576" y="541" class="pl" text-anchor="end">D4</text>
+<circle cx="606" cy="576" r="11" fill="#d9dce0" stroke="#7d828a"/><line x1="599" y1="583" x2="613" y2="569" stroke="#7d828a" stroke-width="2.4"/>
+<text x="576" y="581" class="pl" text-anchor="end">D2</text>
+<circle cx="606" cy="616" r="11" fill="#d9dce0" stroke="#7d828a"/><line x1="599" y1="623" x2="613" y2="609" stroke="#7d828a" stroke-width="2.4"/>
+<text x="576" y="621" class="pl" text-anchor="end">D15</text>
+<circle cx="606" cy="656" r="11" fill="#d9dce0" stroke="#7d828a"/><line x1="599" y1="663" x2="613" y2="649" stroke="#7d828a" stroke-width="2.4"/>
+<text x="576" y="661" class="pl" text-anchor="end">GND</text>
+<circle cx="606" cy="696" r="11" fill="#d9dce0" stroke="#7d828a"/><line x1="599" y1="703" x2="613" y2="689" stroke="#7d828a" stroke-width="2.4"/>
+<text x="576" y="701" class="pl" text-anchor="end">3V3</text>
+<line x1="270" y1="336" x2="386" y2="336" stroke="#2b2c30" stroke-width="8" stroke-linecap="round"/>
+<line x1="270" y1="336" x2="386" y2="336" stroke="#f3d01c" stroke-width="5" stroke-linecap="round"/>
+<text x="262" y="342" class="bt" text-anchor="end">Top button (28 AWG)</text>
+<line x1="270" y1="376" x2="386" y2="376" stroke="#2b2c30" stroke-width="11" stroke-linecap="round"/>
+<line x1="270" y1="376" x2="386" y2="376" stroke="#9aa0a6" stroke-width="8" stroke-linecap="round"/>
+<text x="262" y="382" class="rl" text-anchor="end">8 · E</text>
+<line x1="270" y1="416" x2="386" y2="416" stroke="#2b2c30" stroke-width="11" stroke-linecap="round"/>
+<line x1="270" y1="416" x2="386" y2="416" stroke="#8b4a1c" stroke-width="8" stroke-linecap="round"/>
+<text x="262" y="422" class="rl" text-anchor="end">1 · R1</text>
+<line x1="270" y1="456" x2="386" y2="456" stroke="#2b2c30" stroke-width="11" stroke-linecap="round"/>
+<line x1="270" y1="456" x2="386" y2="456" stroke="#e0262b" stroke-width="8" stroke-linecap="round"/>
+<text x="262" y="462" class="rl" text-anchor="end">2 · G1</text>
+<line x1="270" y1="496" x2="386" y2="496" stroke="#2b2c30" stroke-width="11" stroke-linecap="round"/>
+<line x1="270" y1="496" x2="386" y2="496" stroke="#ff8a1a" stroke-width="8" stroke-linecap="round"/>
+<text x="262" y="502" class="rl" text-anchor="end">3 · B1</text>
+<line x1="270" y1="536" x2="386" y2="536" stroke="#2b2c30" stroke-width="11" stroke-linecap="round"/>
+<line x1="270" y1="536" x2="386" y2="536" stroke="#1f9e4a" stroke-width="8" stroke-linecap="round"/>
+<text x="262" y="542" class="rl" text-anchor="end">5 · R2</text>
+<line x1="270" y1="576" x2="386" y2="576" stroke="#2b2c30" stroke-width="11" stroke-linecap="round"/>
+<line x1="270" y1="576" x2="386" y2="576" stroke="#2f6fe4" stroke-width="8" stroke-linecap="round"/>
+<text x="262" y="582" class="rl" text-anchor="end">6 · G2</text>
+<line x1="270" y1="616" x2="386" y2="616" stroke="#2b2c30" stroke-width="11" stroke-linecap="round"/>
+<line x1="270" y1="616" x2="386" y2="616" stroke="#8743d0" stroke-width="8" stroke-linecap="round"/>
+<text x="262" y="622" class="rl" text-anchor="end">7 · B2</text>
+<line x1="270" y1="648" x2="386" y2="648" stroke="#2b2c30" stroke-width="11" stroke-linecap="round"/>
+<line x1="270" y1="648" x2="386" y2="648" stroke="#f3d01c" stroke-width="8" stroke-linecap="round"/>
+<text x="262" y="654" class="rl" text-anchor="end">4 · GND</text>
+<line x1="270" y1="664" x2="386" y2="664" stroke="#2b2c30" stroke-width="14" stroke-linecap="round"/>
+<line x1="270" y1="664" x2="386" y2="664" stroke="#222326" stroke-width="11" stroke-linecap="round"/>
+<text x="262" y="670" class="pw" text-anchor="end">Power − (from jack)</text>
+<line x1="270" y1="696" x2="386" y2="696" stroke="#2b2c30" stroke-width="14" stroke-linecap="round"/>
+<line x1="270" y1="696" x2="386" y2="696" stroke="#e0262b" stroke-width="11" stroke-linecap="round"/>
+<text x="262" y="702" class="pw" text-anchor="end">Power + (from jack)</text>
+<line x1="730" y1="136" x2="614" y2="136" stroke="#2b2c30" stroke-width="11" stroke-linecap="round"/>
+<line x1="730" y1="136" x2="614" y2="136" stroke="#ffffff" stroke-width="8" stroke-linecap="round"/>
+<text x="738" y="142" class="rl" text-anchor="start">9 · A</text>
+<line x1="730" y1="336" x2="614" y2="336" stroke="#2b2c30" stroke-width="11" stroke-linecap="round"/>
+<line x1="730" y1="336" x2="614" y2="336" stroke="#222326" stroke-width="8" stroke-linecap="round"/>
+<text x="738" y="342" class="rl" text-anchor="start">10 · B</text>
+<line x1="730" y1="376" x2="614" y2="376" stroke="#2b2c30" stroke-width="8" stroke-linecap="round"/>
+<line x1="730" y1="376" x2="614" y2="376" stroke="#6f93e8" stroke-width="5" stroke-linecap="round"/>
+<text x="738" y="382" class="bt" text-anchor="start">Bottom button (28 AWG)</text>
+<line x1="730" y1="416" x2="614" y2="416" stroke="#2b2c30" stroke-width="11" stroke-linecap="round"/>
+<line x1="730" y1="416" x2="614" y2="416" stroke="#8b4a1c" stroke-width="8" stroke-linecap="round"/>
+<text x="738" y="422" class="rl" text-anchor="start">11 · C</text>
+<line x1="730" y1="456" x2="614" y2="456" stroke="#2b2c30" stroke-width="11" stroke-linecap="round"/>
+<line x1="730" y1="456" x2="614" y2="456" stroke="#e0262b" stroke-width="8" stroke-linecap="round"/>
+<text x="738" y="462" class="rl" text-anchor="start">12 · D</text>
+<line x1="730" y1="496" x2="614" y2="496" stroke="#2b2c30" stroke-width="11" stroke-linecap="round"/>
+<line x1="730" y1="496" x2="614" y2="496" stroke="#ff8a1a" stroke-width="8" stroke-linecap="round"/>
+<text x="738" y="502" class="rl" text-anchor="start">13 · CLK</text>
+<line x1="730" y1="536" x2="614" y2="536" stroke="#2b2c30" stroke-width="11" stroke-linecap="round"/>
+<line x1="730" y1="536" x2="614" y2="536" stroke="#f3d01c" stroke-width="8" stroke-linecap="round"/>
+<text x="738" y="542" class="rl" text-anchor="start">14 · LAT</text>
+<line x1="730" y1="616" x2="614" y2="616" stroke="#2b2c30" stroke-width="11" stroke-linecap="round"/>
+<line x1="730" y1="616" x2="614" y2="616" stroke="#1f9e4a" stroke-width="8" stroke-linecap="round"/>
+<text x="738" y="622" class="rl" text-anchor="start">15 · OE</text>
+<line x1="730" y1="648" x2="614" y2="648" stroke="#2b2c30" stroke-width="11" stroke-linecap="round"/>
+<line x1="730" y1="648" x2="614" y2="648" stroke="#2f6fe4" stroke-width="8" stroke-linecap="round"/>
+<text x="738" y="654" class="rl" text-anchor="start">16 · GND</text>
+<line x1="730" y1="664" x2="614" y2="664" stroke="#2b2c30" stroke-width="8" stroke-linecap="round"/>
+<line x1="730" y1="664" x2="614" y2="664" stroke="#222326" stroke-width="5" stroke-linecap="round"/>
+<text x="738" y="670" class="bt" text-anchor="start">Buttons GND (28 AWG)</text>
+<text x="500.0" y="806" class="k">THE RIBBON CABLE, WIRE 1 (BROWN) AT THE R1 END OF THE PLUG</text>
+<rect x="86.0" y="820" width="48" height="22" rx="3" fill="#8b4a1c" stroke="#2b2c30" stroke-width="1.5"/>
+<text x="110.0" y="862" class="kn">1</text><text x="110.0" y="880" class="ks">R1</text>
+<rect x="138.0" y="820" width="48" height="22" rx="3" fill="#e0262b" stroke="#2b2c30" stroke-width="1.5"/>
+<text x="162.0" y="862" class="kn">2</text><text x="162.0" y="880" class="ks">G1</text>
+<rect x="190.0" y="820" width="48" height="22" rx="3" fill="#ff8a1a" stroke="#2b2c30" stroke-width="1.5"/>
+<text x="214.0" y="862" class="kn">3</text><text x="214.0" y="880" class="ks">B1</text>
+<rect x="242.0" y="820" width="48" height="22" rx="3" fill="#f3d01c" stroke="#2b2c30" stroke-width="1.5"/>
+<text x="266.0" y="862" class="kn">4</text><text x="266.0" y="880" class="ks">GND</text>
+<rect x="294.0" y="820" width="48" height="22" rx="3" fill="#1f9e4a" stroke="#2b2c30" stroke-width="1.5"/>
+<text x="318.0" y="862" class="kn">5</text><text x="318.0" y="880" class="ks">R2</text>
+<rect x="346.0" y="820" width="48" height="22" rx="3" fill="#2f6fe4" stroke="#2b2c30" stroke-width="1.5"/>
+<text x="370.0" y="862" class="kn">6</text><text x="370.0" y="880" class="ks">G2</text>
+<rect x="398.0" y="820" width="48" height="22" rx="3" fill="#8743d0" stroke="#2b2c30" stroke-width="1.5"/>
+<text x="422.0" y="862" class="kn">7</text><text x="422.0" y="880" class="ks">B2</text>
+<rect x="450.0" y="820" width="48" height="22" rx="3" fill="#9aa0a6" stroke="#2b2c30" stroke-width="1.5"/>
+<text x="474.0" y="862" class="kn">8</text><text x="474.0" y="880" class="ks">E</text>
+<rect x="502.0" y="820" width="48" height="22" rx="3" fill="#ffffff" stroke="#2b2c30" stroke-width="1.5"/>
+<text x="526.0" y="862" class="kn">9</text><text x="526.0" y="880" class="ks">A</text>
+<rect x="554.0" y="820" width="48" height="22" rx="3" fill="#222326" stroke="#2b2c30" stroke-width="1.5"/>
+<text x="578.0" y="862" class="kn">10</text><text x="578.0" y="880" class="ks">B</text>
+<rect x="606.0" y="820" width="48" height="22" rx="3" fill="#8b4a1c" stroke="#2b2c30" stroke-width="1.5"/>
+<text x="630.0" y="862" class="kn">11</text><text x="630.0" y="880" class="ks">C</text>
+<rect x="658.0" y="820" width="48" height="22" rx="3" fill="#e0262b" stroke="#2b2c30" stroke-width="1.5"/>
+<text x="682.0" y="862" class="kn">12</text><text x="682.0" y="880" class="ks">D</text>
+<rect x="710.0" y="820" width="48" height="22" rx="3" fill="#ff8a1a" stroke="#2b2c30" stroke-width="1.5"/>
+<text x="734.0" y="862" class="kn">13</text><text x="734.0" y="880" class="ks">CLK</text>
+<rect x="762.0" y="820" width="48" height="22" rx="3" fill="#f3d01c" stroke="#2b2c30" stroke-width="1.5"/>
+<text x="786.0" y="862" class="kn">14</text><text x="786.0" y="880" class="ks">LAT</text>
+<rect x="814.0" y="820" width="48" height="22" rx="3" fill="#1f9e4a" stroke="#2b2c30" stroke-width="1.5"/>
+<text x="838.0" y="862" class="kn">15</text><text x="838.0" y="880" class="ks">OE</text>
+<rect x="866.0" y="820" width="48" height="22" rx="3" fill="#2f6fe4" stroke="#2b2c30" stroke-width="1.5"/>
+<text x="890.0" y="862" class="kn">16</text><text x="890.0" y="880" class="ks">GND</text>
+</svg>

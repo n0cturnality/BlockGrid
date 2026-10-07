@@ -1,0 +1,67 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1060 600" width="900" role="img" aria-label="Power wiring. The panel's power cable has two red and two black leads. One pair goes to the barrel jack, red to the centre pin and black to the sleeve, with a 1000 microfarad capacitor across the jack's lugs, stripe to black. The other pair goes to the breakout board: black to GND, red through a 1N5819 Schottky diode, band towards VIN, to VIN. A 100 microfarad capacitor goes into the GND and VIN terminals, stripe to GND.">
+<style>text{font-family:Helvetica,Arial,sans-serif;fill:#24292f}
+.h{font-size:22px;font-weight:700;text-anchor:middle;letter-spacing:2px} .s{font-size:14px;text-anchor:middle;fill:#57606a}
+.n{font-size:15px;font-weight:700} .ns{font-size:13px;fill:#57606a} .w{font-size:14px;text-anchor:middle;fill:#d0d3d8}
+.pk{font-size:14px;font-weight:700;text-anchor:middle;fill:#4a4943} .pl{font-size:14px;font-weight:700;fill:#e6e8eb} .pd{font-size:14px;fill:#6f747c}
+.cm{font-size:15px;font-weight:700;text-anchor:middle;fill:#1b2f63} .cp{font-size:15px;font-weight:700;text-anchor:middle;fill:#ffffff}</style>
+<rect width="1060" height="600" rx="14" fill="#ffffff"/>
+<text x="530.0" y="38" class="h">POWER WIRING</text>
+<text x="530.0" y="62" class="s">With the recommended capacitors and diode (shown in blue and black)</text>
+<rect x="520" y="100" width="160" height="50" rx="6" fill="#f1efe9" stroke="#9c9a93" stroke-width="2"/>
+<text x="600.0" y="130" class="pk">power plug</text>
+<path d="M600.0,94 l0,-14 m-7,7 l7,-7 l7,7" fill="none" stroke="#57606a" stroke-width="2"/>
+<text x="694" y="112" class="ns">to the panel's power socket</text>
+<text x="694" y="130" class="ns">(the cable that comes with the panel)</text>
+<path d="M545,150 L545,220 L200,220" fill="none" stroke="#2b2c30" stroke-width="12" stroke-linejoin="round" stroke-linecap="round"/>
+<path d="M545,150 L545,220 L200,220" fill="none" stroke="#e0262b" stroke-width="9" stroke-linejoin="round" stroke-linecap="round"/>
+<path d="M575,150 L575,330 L200,330" fill="none" stroke="#2b2c30" stroke-width="12" stroke-linejoin="round" stroke-linecap="round"/>
+<path d="M575,150 L575,330 L200,330" fill="none" stroke="#222326" stroke-width="9" stroke-linejoin="round" stroke-linecap="round"/>
+<path d="M655,150 L655,290 L916,290" fill="none" stroke="#2b2c30" stroke-width="12" stroke-linejoin="round" stroke-linecap="round"/>
+<path d="M655,150 L655,290 L916,290" fill="none" stroke="#222326" stroke-width="9" stroke-linejoin="round" stroke-linecap="round"/>
+<path d="M625,150 L625,430 L916,430" fill="none" stroke="#2b2c30" stroke-width="12" stroke-linejoin="round" stroke-linecap="round"/>
+<path d="M625,150 L625,430 L916,430" fill="none" stroke="#e0262b" stroke-width="9" stroke-linejoin="round" stroke-linecap="round"/>
+<rect x="40" y="190" width="22" height="170" rx="3" fill="#9ea3aa"/>
+<rect x="62" y="202" width="118" height="146" rx="8" fill="#3b3e44"/>
+<rect x="176" y="211" width="30" height="18" rx="4" fill="#c9ccd1" stroke="#7d828a"/>
+<rect x="176" y="321" width="30" height="18" rx="4" fill="#c9ccd1" stroke="#7d828a"/>
+<text x="121" y="271.0" class="w">barrel</text><text x="121" y="289.0" class="w">jack</text>
+<text x="190" y="202" class="ns" text-anchor="middle">+ centre pin</text>
+<text x="190" y="362" class="ns" text-anchor="middle">− sleeve</text>
+<line x1="300" y1="220" x2="300" y2="242" stroke="#8a8f96" stroke-width="3"/>
+<line x1="300" y1="308" x2="300" y2="330" stroke="#8a8f96" stroke-width="3"/>
+<rect x="283" y="242" width="34" height="66" rx="6" fill="#2a4fa8" stroke="#1b2f63" stroke-width="2"/>
+<rect x="283" y="292" width="34" height="14" fill="#c9d3ea"/>
+<text x="300" y="303" class="cm">−</text><text x="300" y="259" class="cp">+</text>
+<circle cx="300" cy="220" r="6" fill="#c4c8ce" stroke="#6b7078" stroke-width="1.5"/>
+<circle cx="300" cy="330" r="6" fill="#c4c8ce" stroke="#6b7078" stroke-width="1.5"/>
+<text x="330" y="267.0" class="n" text-anchor="start">1000 µF, 10 V or more</text>
+<text x="330" y="285.0" class="ns" text-anchor="start">across the jack's lugs</text>
+<text x="330" y="303.0" class="ns" text-anchor="start">stripe (−) to black</text>
+<rect x="700" y="417" width="80" height="26" rx="5" fill="#1e1f22" stroke="#000" stroke-width="1.5"/>
+<rect x="762" y="417" width="10" height="26" fill="#d6d9de"/>
+<text x="740.0" y="478" class="n" text-anchor="middle">1N5819 Schottky diode</text>
+<text x="740.0" y="496" class="ns" text-anchor="middle">band towards VIN, then heat-shrink</text>
+<line x1="860" y1="290" x2="860" y2="312" stroke="#8a8f96" stroke-width="3"/>
+<line x1="860" y1="408" x2="860" y2="430" stroke="#8a8f96" stroke-width="3"/>
+<rect x="843" y="312" width="34" height="96" rx="6" fill="#2a4fa8" stroke="#1b2f63" stroke-width="2"/>
+<rect x="843" y="314" width="34" height="14" fill="#c9d3ea"/>
+<text x="860" y="325" class="cm">−</text><text x="860" y="402" class="cp">+</text>
+<circle cx="860" cy="290" r="6" fill="#c4c8ce" stroke="#6b7078" stroke-width="1.5"/>
+<circle cx="860" cy="430" r="6" fill="#c4c8ce" stroke="#6b7078" stroke-width="1.5"/>
+<text x="838" y="352.0" class="n" text-anchor="end">100 µF, 10 V or more</text>
+<text x="838" y="370.0" class="ns" text-anchor="end">into the GND and VIN</text>
+<text x="838" y="388.0" class="ns" text-anchor="end">terminals, stripe (−) to GND</text>
+<rect x="910" y="190" width="125" height="280" rx="8" fill="#1c1d20"/>
+<rect x="914" y="194" width="32" height="272" rx="3" fill="#2fa65a"/>
+<circle cx="930" cy="210" r="12" fill="#d9dce0" stroke="#7d828a"/><line x1="923" y1="217" x2="937" y2="203" stroke="#7d828a" stroke-width="2.4"/>
+<text x="958" y="215" class="pd">D12</text>
+<circle cx="930" cy="250" r="12" fill="#d9dce0" stroke="#7d828a"/><line x1="923" y1="257" x2="937" y2="243" stroke="#7d828a" stroke-width="2.4"/>
+<text x="958" y="255" class="pd">D13</text>
+<circle cx="930" cy="290" r="12" fill="#d9dce0" stroke="#7d828a"/><line x1="923" y1="297" x2="937" y2="283" stroke="#7d828a" stroke-width="2.4"/>
+<text x="958" y="295" class="pl">GND</text>
+<circle cx="930" cy="430" r="12" fill="#d9dce0" stroke="#7d828a"/><line x1="923" y1="437" x2="937" y2="423" stroke="#7d828a" stroke-width="2.4"/>
+<text x="958" y="435" class="pl">VIN</text>
+<text x="972" y="494" class="ns" text-anchor="middle">bottom of the</text><text x="972" y="512" class="ns" text-anchor="middle">left-hand row</text>
+<text x="530.0" y="552" class="s">Electrolytic capacitors are polarised: the stripe marks the negative (−) leg. Fitted backwards, they can fail violently.</text>
+<text x="530.0" y="574" class="s">Without the recommended parts, the wiring is the same: the red and black leads go straight to the jack and to VIN and GND.</text>
+</svg>
