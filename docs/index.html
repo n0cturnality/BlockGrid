@@ -1760,52 +1760,86 @@ const SCALE = 7;
 canvas.width  = W * SCALE;
 canvas.height = H * SCALE;
 
+// LED sprites. The panel's background and every unlit LED never change, so
+// they're drawn once into panelBase. Each lit LED colour is drawn once
+// (glow and dot, exactly as before) into a small offscreen canvas and then
+// stamped with drawImage, so a frame costs one drawImage per lit LED
+// instead of two new gradients for each. The sprite's centre sits on the
+// same half-pixel as the LED's centre on the panel, so the LEDs look the same.
+const SPRITE_SIZE = Math.ceil(SCALE * 1.1) * 2 + 3;   // room for the glow
+const SPRITE_C = SPRITE_SIZE / 2;                     // x.5, like each LED centre
+const SPRITE_OFFSET = SCALE / 2 - SPRITE_C;           // whole number
+const ledSprites = new Map();
+function makeSprite(draw) {
+  const c = document.createElement('canvas');
+  c.width = c.height = SPRITE_SIZE;
+  draw(c.getContext('2d'), SPRITE_C, SPRITE_C);
+  return c;
+}
+const panelBase = document.createElement('canvas');
+panelBase.width = canvas.width;
+panelBase.height = canvas.height;
+{
+  const g = panelBase.getContext('2d');
+  g.fillStyle = '#050505';
+  g.fillRect(0, 0, panelBase.width, panelBase.height);
+  g.fillStyle = '#111';
+  for (let y = 0; y < H; y++)
+    for (let x = 0; x < W; x++) {
+      // Off LED: dark dot
+      g.beginPath();
+      g.arc(x * SCALE + SCALE / 2, y * SCALE + SCALE / 2, SCALE * 0.38 * 0.75, 0, Math.PI * 2);
+      g.fill();
+    }
+}
+function litLedSprite(ri, gi, bi, hr, hg, hb) {
+  const key = ri + ',' + gi + ',' + bi + ',' + hr + ',' + hg + ',' + hb;
+  let sp = ledSprites.get(key);
+  if (sp) return sp;
+  if (ledSprites.size > 4000) ledSprites.clear();      // bound the cache
+  sp = makeSprite((g, cx, cy) => {
+    const radius = SCALE * 0.38;
+    // outer glow
+    const grd = g.createRadialGradient(cx, cy, 0, cx, cy, SCALE * 1.1);
+    grd.addColorStop(0,   `rgba(${ri},${gi},${bi},0.45)`);
+    grd.addColorStop(0.5, `rgba(${ri},${gi},${bi},0.12)`);
+    grd.addColorStop(1,   `rgba(${ri},${gi},${bi},0)`);
+    g.fillStyle = grd;
+    g.beginPath();
+    g.arc(cx, cy, SCALE * 1.1, 0, Math.PI * 2);
+    g.fill();
+    // dot core
+    const grd2 = g.createRadialGradient(cx - radius*.2, cy - radius*.2, 0, cx, cy, radius);
+    grd2.addColorStop(0,   `rgba(255,255,255,0.7)`);
+    grd2.addColorStop(0.4, `rgba(${ri},${gi},${bi},1)`);
+    grd2.addColorStop(1,   `rgba(${hr},${hg},${hb},1)`);
+    g.fillStyle = grd2;
+    g.beginPath();
+    g.arc(cx, cy, radius, 0, Math.PI * 2);
+    g.fill();
+  });
+  ledSprites.set(key, sp);
+  return sp;
+}
+
 function repaint() {
   const brt = displayOff ? 0 : document.getElementById('brightness').value / 255;
 
-  ctx.fillStyle = '#050505';
-  ctx.fillRect(0, 0, canvas.width, canvas.height);
+  ctx.drawImage(panelBase, 0, 0);   // background and unlit LEDs
+  if (brt === 0) return;
 
   for (let y = 0; y < H; y++) {
+    const sy = y * SCALE + SPRITE_OFFSET;
     for (let x = 0; x < W; x++) {
       const i = (y * W + x) * 3;
-      let r = fb[i]   * brt;
-      let g = fb[i+1] * brt;
-      let b = fb[i+2] * brt;
-
-      const cx = x * SCALE + SCALE / 2;
-      const cy = y * SCALE + SCALE / 2;
-      const radius = SCALE * 0.38;
-
+      const r = fb[i]   * brt;
+      const g = fb[i+1] * brt;
+      const b = fb[i+2] * brt;
       if (r > 1 || g > 1 || b > 1) {
-        // Lit LED: dot + glow
-        const ri = Math.round(r), gi = Math.round(g), bi = Math.round(b);
-
-        // outer glow
-        const grd = ctx.createRadialGradient(cx, cy, 0, cx, cy, SCALE * 1.1);
-        grd.addColorStop(0,   `rgba(${ri},${gi},${bi},0.45)`);
-        grd.addColorStop(0.5, `rgba(${ri},${gi},${bi},0.12)`);
-        grd.addColorStop(1,   `rgba(${ri},${gi},${bi},0)`);
-        ctx.fillStyle = grd;
-        ctx.beginPath();
-        ctx.arc(cx, cy, SCALE * 1.1, 0, Math.PI * 2);
-        ctx.fill();
-
-        // dot core
-        const grd2 = ctx.createRadialGradient(cx - radius*.2, cy - radius*.2, 0, cx, cy, radius);
-        grd2.addColorStop(0,   `rgba(255,255,255,0.7)`);
-        grd2.addColorStop(0.4, `rgba(${ri},${gi},${bi},1)`);
-        grd2.addColorStop(1,   `rgba(${Math.round(r*.5)},${Math.round(g*.5)},${Math.round(b*.5)},1)`);
-        ctx.fillStyle = grd2;
-        ctx.beginPath();
-        ctx.arc(cx, cy, radius, 0, Math.PI * 2);
-        ctx.fill();
-      } else {
-        // Off LED: dark dot
-        ctx.fillStyle = '#111';
-        ctx.beginPath();
-        ctx.arc(cx, cy, radius * 0.75, 0, Math.PI * 2);
-        ctx.fill();
+        // Lit LED: dot + glow, covering the unlit dot underneath
+        ctx.drawImage(litLedSprite(Math.round(r), Math.round(g), Math.round(b),
+                                   Math.round(r*.5), Math.round(g*.5), Math.round(b*.5)),
+                      x * SCALE + SPRITE_OFFSET, sy);
       }
     }
   }
@@ -1891,8 +1925,9 @@ const MODE_LABELS = { normal: 'Normal', error: 'API error', ap: 'AP setup', spla
 function setStat(id, text, cls) {
   const el = document.getElementById(id);
   if (!el) return;
-  el.textContent = text;
-  el.className = 'v' + (cls ? ' ' + cls : '');
+  const c = 'v' + (cls ? ' ' + cls : '');
+  if (el.textContent !== String(text)) el.textContent = text;   // only touch the page when something changed
+  if (el.className !== c) el.className = c;
 }
 function updateStatus() {
   const jpy = currencyOptions[currentCurrencyIndex] === 'JPY';
