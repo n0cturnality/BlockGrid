@@ -19,11 +19,7 @@
   <img src="docs/images/blockgrid-katakana.gif" alt="The main screen with ビットコイン, Bitcoin in Japanese katakana, and the price in yen: two new blocks arrive, each with a price change." width="400">
 </p>
 
-<p align="center">
-  BlockGrid shows the current block height, the price and its 24-hour change, and how many sats a dollar, euro or ¥100 buys.<br>
-  Two optional buttons on the back adjust the brightness and switch between the different looks and currency pairs.<br>
-  Everything else, from Wi-Fi to data sources, is set on a web page from your phone or computer.
-</p>
+BlockGrid shows the current block height, the price and its 24-hour change, and how many sats a dollar, euro or ¥100 buys. Two optional buttons on the back adjust the brightness and switch between the different looks and currency pairs. Everything else, from Wi-Fi to data sources, is set on a web page from your phone or computer.
 
 <p align="center">
   <a href="https://n0cturnality.github.io/BlockGrid/"><img src="docs/images/button-live-demo.svg" alt="Live demo" height="48"></a>
