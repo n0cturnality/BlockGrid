@@ -95,7 +95,7 @@ Open **Tools → Manage Libraries…** and install:
 
 | Search for | Author | Version |
 |---|---|---|
-| ESP32 HUB75 LED MATRIX PANEL DMA Display | mrcodetastic | 3.0.15 |
+| ESP32 HUB75 LED MATRIX PANEL DMA Display | mrcodetastic | 3.1.0 |
 | Adafruit GFX Library | Adafruit | 1.12.6 |
 | Adafruit BusIO | Adafruit | 1.17.4 (offered with Adafruit GFX: choose "Install all") |
 | ArduinoJson | Benoit Blanchon | 7.x |
